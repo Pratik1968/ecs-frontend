@@ -1,42 +1,661 @@
-#root {
-  max-width: 1280px;
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0f0f23;
+  color: #ffffff;
+  line-height: 1.6;
+}
+
+.app {
+  min-height: 100vh;
+  background-color: #0f0f23;
+}
+
+/* Dashboard Overview */
+.dashboard {
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.dashboard h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
   text-align: center;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.dashboard-description {
+  text-align: center;
+  color: #a0a0a0;
+  font-size: 1.1rem;
+  margin-bottom: 3rem;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Classrooms Grid */
+.classrooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.classroom-card {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid #2d2d44;
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.classroom-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  border-color: #4a4a6a;
+}
+
+.classroom-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
+  border-radius: 12px 12px 0 0;
+}
+
+.classroom-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.class-icon {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.classroom-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.classroom-details p {
+  margin-bottom: 0.5rem;
+  color: #d1d5db;
+  font-size: 0.9rem;
+}
+
+.class-id {
+  font-weight: 500;
+  color: #60a5fa !important;
+}
+
+.students-count {
+  font-weight: 500;
+  color: #fbbf24 !important;
+}
+
+.attendance-rate {
+  font-weight: 500;
+  margin-top: 0.75rem;
+}
+
+/* Header and Navigation */
+.header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 1px solid #2d2d44;
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #60a5fa;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  transition: color 0.2s ease;
+}
+
+.back-button:hover {
+  color: #93c5fd;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  color: #ffffff;
+}
+
+.class-details {
+  color: #a0a0a0;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.navigation {
+  display: flex;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 0.25rem;
+  margin: 0 2rem 2rem 2rem;
+  border: 1px solid #2d2d44;
+}
+
+.nav-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #a0a0a0;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.nav-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-tab.active {
+  background: #2d2d44;
+  color: #ffffff;
+}
+
+/* Content Area */
+.content {
+  padding: 0 2rem 2rem 2rem;
+}
+
+/* Class Info Tab */
+.class-info {
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.basic-details h3,
+.attendance-stats h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #2d2d44;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.label {
+  color: #a0a0a0;
+  font-weight: 500;
+}
+
+.value {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.attendance-rate {
+  text-align: center;
+  padding: 2rem;
+  background: #2d2d44;
+  border-radius: 8px;
+}
+
+.rate-number {
+  font-size: 3rem;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.rate-label {
+  color: #a0a0a0;
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.attendance-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: #d1d5db;
+  font-size: 0.9rem;
+}
+
+/* Student List Tab */
+.student-list {
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.student-list h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th {
+  background: #2d2d44;
+  color: #ffffff;
+  font-weight: 600;
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 1px solid #4a4a6a;
+}
+
+td {
+  padding: 1rem;
+  border-bottom: 1px solid #2d2d44;
+  color: #d1d5db;
+}
+
+tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Faculty Info Tab */
+.faculty-info {
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.faculty-info h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.faculty-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.faculty-details .detail-item {
+  background: #2d2d44;
+  padding: 1rem;
+  border-radius: 8px;
+  border: none;
+}
+
+/* Attendance Info Tab */
+.attendance-info {
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.attendance-info h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attendance-description {
+  color: #a0a0a0;
+  margin-bottom: 2rem;
+}
+
+.date-selection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.date-selection label {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.date-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #2d2d44;
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.date-select {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  min-width: 200px;
+}
+
+.date-select option {
+  background: #2d2d44;
+  color: #ffffff;
+}
+
+.latest-class-btn {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.latest-class-btn:hover {
+  background: #059669;
+}
+
+.attendance-info h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.present {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.absent {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.entry-time {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #60a5fa;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
   }
-  to {
-    transform: rotate(360deg);
+  
+  .dashboard h1 {
+    font-size: 2rem;
+  }
+  
+  .classrooms-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .header {
+    padding: 1rem;
+  }
+  
+  .header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .navigation {
+    margin: 0 1rem 1rem 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .nav-tab {
+    flex: none;
+    min-width: 120px;
+  }
+  
+  .content {
+    padding: 0 1rem 1rem 1rem;
+  }
+  
+  .class-info,
+  .student-list,
+  .faculty-info,
+  .attendance-info {
+    padding: 1rem;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .date-selection {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .date-input-container {
+    width: 100%;
+  }
+  
+  .date-select {
+    min-width: auto;
+    width: 100%;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@media (max-width: 480px) {
+  .classroom-card {
+    padding: 1rem;
+  }
+  
+  .classroom-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .rate-number {
+    font-size: 2rem;
+  }
+  
+  table {
+    font-size: 0.9rem;
+  }
+  
+  th, td {
+    padding: 0.75rem 0.5rem;
   }
 }
 
-.card {
-  padding: 2em;
+/* ==========================
+   ECS THEME OVERRIDES (Light theme)
+   ========================== */
+:root {
+  --ecs-green: #09a46b;
+  --ecs-green-dark: #059669;
+  --ecs-black: #000000;
+  --ecs-text: #0f0f0f;
+  --ecs-muted: #4b5563;
+  --ecs-bg: #ffffff;
+  --ecs-surface: #ffffff;
+  --ecs-surface-muted: #f3f4f6;
+  --ecs-border: #e5e7eb;
 }
 
-.read-the-docs {
-  color: #888;
+body {
+  background-color: var(--ecs-bg);
+  color: var(--ecs-text);
 }
+
+.app { background-color: var(--ecs-bg); }
+
+.header {
+  background: var(--ecs-surface);
+  border-bottom: 1px solid var(--ecs-border);
+}
+.header h1 { color: var(--ecs-text); }
+.class-details { color: var(--ecs-muted); }
+.back-button { color: var(--ecs-green); }
+.back-button:hover { color: #0dd60d; }
+
+.navigation {
+  background: var(--ecs-surface);
+  border: 1px solid var(--ecs-border);
+}
+.nav-tab { color: var(--ecs-muted); }
+.nav-tab:hover { color: var(--ecs-black); background: rgba(0,0,0,0.04); }
+.nav-tab.active { background: var(--ecs-black); color: #ffffff; }
+
+.classroom-card {
+  background: var(--ecs-green);
+  border: 1px solid var(--ecs-green-dark);
+}
+.classroom-card:hover { border-color: var(--ecs-green-dark); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+.classroom-card::before { background: var(--ecs-green); }
+.class-icon { color: #ffffff; background: rgba(255,255,255,0.2); }
+.classroom-card .classroom-header h3 { color: #0f0f0f; }
+.classroom-card .classroom-details p { color: #0f0f0f; }
+.classroom-card .class-id { color: #065f46 !important; }
+.classroom-card .students-count { color: #0f0f0f !important; background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px; display: inline-block; }
+.classroom-card .attendance-rate { color: #0f0f0f; }
+.dashboard h1 { color: var(--ecs-black); }
+.dashboard-description { color: var(--ecs-muted); }
+
+.class-info,
+.student-list,
+.faculty-info,
+.attendance-info { background: var(--ecs-surface); border: 1px solid var(--ecs-border); }
+
+.attendance-stats h3,
+.student-list h3,
+.faculty-info h3,
+.attendance-info h3 { color: var(--ecs-black); }
+
+.label { color: var(--ecs-muted); }
+.value { color: var(--ecs-black); }
+.attendance-rate { background: var(--ecs-surface-muted); }
+.rate-label { color: var(--ecs-muted); }
+.attendance-details { color: #374151; }
+
+th { background: var(--ecs-black); color: #ffffff; border-bottom: 1px solid var(--ecs-black); }
+td { color: var(--ecs-text); border-bottom: 1px solid var(--ecs-border); }
+
+/* Ensure borders are always visible against surfaces */
+.class-info,
+.student-list,
+.faculty-info,
+.attendance-info,
+.navigation,
+.date-input-container,
+.calendar-popover {
+  border-color: var(--ecs-border);
+}
+.table-container table { border: 1px solid var(--ecs-border); }
+.table-container table tr { border-bottom: 1px solid var(--ecs-border); }
+
+.faculty-details .detail-item { background: var(--ecs-surface-muted); }
+
+.attendance-description { color: var(--ecs-muted); }
+.date-selection label { color: var(--ecs-black); }
+.date-input-container { background: var(--ecs-surface); border: 1px solid var(--ecs-border); }
+.date-select option { background: var(--ecs-surface); color: var(--ecs-black); }
+.latest-class-btn { background: var(--ecs-green); color: #ffffff; }
+.latest-class-btn:hover { background: #14c714; }
+.attendance-info h4 { color: var(--ecs-black); }
+.entry-time { color: var(--ecs-green); }
+
+/* Calendar popover surface and theming */
+.calendar-popover { background: var(--ecs-surface); border: 1px solid var(--ecs-border); }
+.calendar-popover .rdp {
+  --rdp-accent-color: var(--ecs-green);
+  --rdp-background-color: var(--ecs-surface);
+  color: var(--ecs-black);
+  background: var(--ecs-surface);
+}
+.calendar-popover .rdp-day_selected:not([disabled]),
+.calendar-popover .rdp-day_selected:focus:not([disabled]) {
+  background: var(--ecs-green);
+  color: #ffffff;
+}
+.calendar-popover .rdp-button[disabled] { opacity: 0.35; }
