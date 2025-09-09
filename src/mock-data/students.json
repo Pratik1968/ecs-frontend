@@ -1,0 +1,154 @@
+{
+  "CS101": [
+    {
+      "regNo": "2024CS001",
+      "name": "John Smith",
+      "classID": "CS101",
+      "barcode": "CS001123456",
+      "attendanceRate": 90
+    },
+    {
+      "regNo": "2024CS002",
+      "name": "Alice Johnson",
+      "classID": "CS101",
+      "barcode": "CS002123456",
+      "attendanceRate": 85.5
+    },
+    {
+      "regNo": "2024CS003",
+      "name": "Bob Wilson",
+      "classID": "CS101",
+      "barcode": "CS003123456",
+      "attendanceRate": 78.3
+    },
+    {
+      "regNo": "2024CS004",
+      "name": "Emma Davis",
+      "classID": "CS101",
+      "barcode": "CS004123456",
+      "attendanceRate": 92.1
+    },
+    {
+      "regNo": "2024CS005",
+      "name": "Michael Brown",
+      "classID": "CS101",
+      "barcode": "CS005123456",
+      "attendanceRate": 88.7
+    }
+  ],
+  "MA102": [
+    {
+      "regNo": "2024MA001",
+      "name": "Sarah Wilson",
+      "classID": "MA102",
+      "barcode": "MA001123456",
+      "attendanceRate": 95.2
+    },
+    {
+      "regNo": "2024MA002",
+      "name": "David Lee",
+      "classID": "MA102",
+      "barcode": "MA002123456",
+      "attendanceRate": 89.1
+    },
+    {
+      "regNo": "2024MA003",
+      "name": "Lisa Chen",
+      "classID": "MA102",
+      "barcode": "MA003123456",
+      "attendanceRate": 91.8
+    }
+  ],
+  "PH201": [
+    {
+      "regNo": "2024PH001",
+      "name": "Tom Anderson",
+      "classID": "PH201",
+      "barcode": "PH001123456",
+      "attendanceRate": 82.5
+    },
+    {
+      "regNo": "2024PH002",
+      "name": "Rachel Green",
+      "classID": "PH201",
+      "barcode": "PH002123456",
+      "attendanceRate": 75.2
+    },
+    {
+      "regNo": "2024PH003",
+      "name": "Chris Martin",
+      "classID": "PH201",
+      "barcode": "PH003123456",
+      "attendanceRate": 79.8
+    }
+  ],
+  "CH202": [
+    {
+      "regNo": "2024CH001",
+      "name": "Alex Turner",
+      "classID": "CH202",
+      "barcode": "CH001123456",
+      "attendanceRate": 91.3
+    },
+    {
+      "regNo": "2024CH002",
+      "name": "Sophie White",
+      "classID": "CH202",
+      "barcode": "CH002123456",
+      "attendanceRate": 86.7
+    },
+    {
+      "regNo": "2024CH003",
+      "name": "James Black",
+      "classID": "CH202",
+      "barcode": "CH003123456",
+      "attendanceRate": 88.2
+    }
+  ],
+  "EN301": [
+    {
+      "regNo": "2024EN001",
+      "name": "Grace Kelly",
+      "classID": "EN301",
+      "barcode": "EN001123456",
+      "attendanceRate": 84.5
+    },
+    {
+      "regNo": "2024EN002",
+      "name": "Henry Ford",
+      "classID": "EN301",
+      "barcode": "EN002123456",
+      "attendanceRate": 78.9
+    },
+    {
+      "regNo": "2024EN003",
+      "name": "Ivy Johnson",
+      "classID": "EN301",
+      "barcode": "EN003123456",
+      "attendanceRate": 82.1
+    }
+  ],
+  "HI302": [
+    {
+      "regNo": "2024HI001",
+      "name": "Kate Winslet",
+      "classID": "HI302",
+      "barcode": "HI001123456",
+      "attendanceRate": 96.8
+    },
+    {
+      "regNo": "2024HI002",
+      "name": "Leo DiCaprio",
+      "classID": "HI302",
+      "barcode": "HI002123456",
+      "attendanceRate": 91.4
+    },
+    {
+      "regNo": "2024HI003",
+      "name": "Meryl Streep",
+      "classID": "HI302",
+      "barcode": "HI003123456",
+      "attendanceRate": 94.2
+    }
+  ]
+}

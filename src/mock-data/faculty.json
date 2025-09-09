@@ -1,0 +1,44 @@
+{
+  "FAC001": {
+    "id": "FAC001",
+    "name": "Dr. Alan Turing",
+    "cabinNumber": "A-15",
+    "position": "Professor",
+    "department": "Computer Science"
+  },
+  "FAC002": {
+    "id": "FAC002",
+    "name": "Dr. Maria Rodriguez",
+    "cabinNumber": "B-22",
+    "position": "Associate Professor",
+    "department": "Mathematics"
+  },
+  "FAC003": {
+    "id": "FAC003",
+    "name": "Dr. Robert Einstein",
+    "cabinNumber": "C-08",
+    "position": "Senior Professor",
+    "department": "Physics"
+  },
+  "FAC004": {
+    "id": "FAC004",
+    "name": "Dr. Emily Watson",
+    "cabinNumber": "D-12",
+    "position": "Assistant Professor",
+    "department": "Chemistry"
+  },
+  "FAC005": {
+    "id": "FAC005",
+    "name": "Dr. William Shakespeare",
+    "cabinNumber": "E-05",
+    "position": "Professor",
+    "department": "English Literature"
+  },
+  "FAC006": {
+    "id": "FAC006",
+    "name": "Dr. Elizabeth Tudor",
+    "cabinNumber": "F-18",
+    "position": "Professor",
+    "department": "History"
+  }
+}

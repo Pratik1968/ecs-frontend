@@ -1,0 +1,62 @@
+[
+  {
+    "id": "CS101",
+    "name": "Computer Science A",
+    "floor": 1,
+    "room": 101,
+    "presentStudents": 35,
+    "totalStudents": 40,
+    "avgAttendance": 85.5,
+    "facultyId": "FAC001"
+  },
+  {
+    "id": "MA102",
+    "name": "Mathematics B",
+    "floor": 1,
+    "room": 102,
+    "presentStudents": 32,
+    "totalStudents": 35,
+    "avgAttendance": 92.3,
+    "facultyId": "FAC002"
+  },
+  {
+    "id": "PH201",
+    "name": "Physics Lab",
+    "floor": 2,
+    "room": 201,
+    "presentStudents": 28,
+    "totalStudents": 30,
+    "avgAttendance": 78.9,
+    "facultyId": "FAC003"
+  },
+  {
+    "id": "CH202",
+    "name": "Chemistry Lab",
+    "floor": 2,
+    "room": 202,
+    "presentStudents": 24,
+    "totalStudents": 25,
+    "avgAttendance": 88.7,
+    "facultyId": "FAC004"
+  },
+  {
+    "id": "EN301",
+    "name": "English Literature",
+    "floor": 3,
+    "room": 301,
+    "presentStudents": 42,
+    "totalStudents": 45,
+    "avgAttendance": 81.2,
+    "facultyId": "FAC005"
+  },
+  {
+    "id": "HI302",
+    "name": "History Seminar",
+    "floor": 3,
+    "room": 302,
+    "presentStudents": 18,
+    "totalStudents": 20,
+    "avgAttendance": 94.1,
+    "facultyId": "FAC006"
+  }
+]

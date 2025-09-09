@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GraduationCap, Users, User, Clock, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
 import './App.css';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -10,192 +10,108 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import PageLayout from '@/components/layout/PageLayout';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { getClasses, getClassDetails } from '@/services/api';
 
-// Sample data
-const classrooms = [
-  {
-    id: 'CS101',
-    name: 'Computer Science A',
-    floor: 1,
-    room: 101,
-    presentStudents: 35,
-    totalStudents: 40,
-    avgAttendance: 85.5,
-    students: [
-      { name: 'John Smith', regNumber: '2024CS001', attendanceRate: 90 },
-      { name: 'Alice Johnson', regNumber: '2024CS002', attendanceRate: 85.5 },
-      { name: 'Bob Wilson', regNumber: '2024CS003', attendanceRate: 78.3 },
-      { name: 'Emma Davis', regNumber: '2024CS004', attendanceRate: 92.1 },
-      { name: 'Michael Brown', regNumber: '2024CS005', attendanceRate: 88.7 }
+// Mock attendance records (keeping this for now as requested)
+const mockAttendanceRecords = {
+  'CS101': {
+    '2024-01-26': [
+      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:11' },
+      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:14' },
+      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'present', entryTime: '09:16' },
+      { name: 'Emma Davis', regNumber: '2024CS004', status: 'absent', entryTime: '-' },
+      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:09' }
     ],
-    faculty: {
-      name: 'Dr. Alan Turing',
-      id: 'FAC001',
-      cabinNumber: 'A-15',
-      position: 'Professor'
-    },
-    attendanceRecords: {
-      '2024-01-26': [
-        { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:11' },
-        { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:14' },
-        { name: 'Bob Wilson', regNumber: '2024CS003', status: 'present', entryTime: '09:16' },
-        { name: 'Emma Davis', regNumber: '2024CS004', status: 'absent', entryTime: '-' },
-        { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:09' }
-      ],
-      '2024-01-25': [
-        { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:05' },
-        { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:12' },
-        { name: 'Bob Wilson', regNumber: '2024CS003', status: 'absent', entryTime: '-' },
-        { name: 'Emma Davis', regNumber: '2024CS004', status: 'present', entryTime: '09:08' },
-        { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:15' }
-      ]
-    }
+    '2024-01-25': [
+      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:05' },
+      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:12' },
+      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'absent', entryTime: '-' },
+      { name: 'Emma Davis', regNumber: '2024CS004', status: 'present', entryTime: '09:08' },
+      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:15' }
+    ]
   },
-  {
-    id: 'MA102',
-    name: 'Mathematics B',
-    floor: 1,
-    room: 102,
-    presentStudents: 32,
-    totalStudents: 35,
-    avgAttendance: 92.3,
-    students: [
-      { name: 'Sarah Wilson', regNumber: '2024MA001', attendanceRate: 95.2 },
-      { name: 'David Lee', regNumber: '2024MA002', attendanceRate: 89.1 },
-      { name: 'Lisa Chen', regNumber: '2024MA003', attendanceRate: 91.8 }
-    ],
-    faculty: {
-      name: 'Dr. Maria Rodriguez',
-      id: 'FAC002',
-      cabinNumber: 'B-22',
-      position: 'Associate Professor'
-    },
-    attendanceRecords: {
-      '2024-01-26': [
-        { name: 'Sarah Wilson', regNumber: '2024MA001', status: 'present', entryTime: '10:05' },
-        { name: 'David Lee', regNumber: '2024MA002', status: 'present', entryTime: '10:12' },
-        { name: 'Lisa Chen', regNumber: '2024MA003', status: 'present', entryTime: '10:08' }
-      ]
-    }
+  'MA102': {
+    '2024-01-26': [
+      { name: 'Sarah Wilson', regNumber: '2024MA001', status: 'present', entryTime: '10:05' },
+      { name: 'David Lee', regNumber: '2024MA002', status: 'present', entryTime: '10:12' },
+      { name: 'Lisa Chen', regNumber: '2024MA003', status: 'present', entryTime: '10:08' }
+    ]
   },
-  {
-    id: 'PH201',
-    name: 'Physics Lab',
-    floor: 2,
-    room: 201,
-    presentStudents: 28,
-    totalStudents: 30,
-    avgAttendance: 78.9,
-    students: [
-      { name: 'Tom Anderson', regNumber: '2024PH001', attendanceRate: 82.5 },
-      { name: 'Rachel Green', regNumber: '2024PH002', attendanceRate: 75.2 },
-      { name: 'Chris Martin', regNumber: '2024PH003', attendanceRate: 79.8 }
-    ],
-    faculty: {
-      name: 'Dr. Robert Einstein',
-      id: 'FAC003',
-      cabinNumber: 'C-08',
-      position: 'Senior Professor'
-    },
-    attendanceRecords: {
-      '2024-01-26': [
-        { name: 'Tom Anderson', regNumber: '2024PH001', status: 'present', entryTime: '14:05' },
-        { name: 'Rachel Green', regNumber: '2024PH002', status: 'absent', entryTime: '-' },
-        { name: 'Chris Martin', regNumber: '2024PH003', status: 'present', entryTime: '14:12' }
-      ]
-    }
+  'PH201': {
+    '2024-01-26': [
+      { name: 'Tom Anderson', regNumber: '2024PH001', status: 'present', entryTime: '14:05' },
+      { name: 'Rachel Green', regNumber: '2024PH002', status: 'absent', entryTime: '-' },
+      { name: 'Chris Martin', regNumber: '2024PH003', status: 'present', entryTime: '14:12' }
+    ]
   },
-  {
-    id: 'CH202',
-    name: 'Chemistry Lab',
-    floor: 2,
-    room: 202,
-    presentStudents: 24,
-    totalStudents: 25,
-    avgAttendance: 88.7,
-    students: [
-      { name: 'Alex Turner', regNumber: '2024CH001', attendanceRate: 91.3 },
-      { name: 'Sophie White', regNumber: '2024CH002', attendanceRate: 86.7 },
-      { name: 'James Black', regNumber: '2024CH003', attendanceRate: 88.2 }
-    ],
-    faculty: {
-      name: 'Dr. Emily Watson',
-      id: 'FAC004',
-      cabinNumber: 'D-12',
-      position: 'Assistant Professor'
-    },
-    attendanceRecords: {
-      '2024-01-26': [
-        { name: 'Alex Turner', regNumber: '2024CH001', status: 'present', entryTime: '15:05' },
-        { name: 'Sophie White', regNumber: '2024CH002', status: 'present', entryTime: '15:08' },
-        { name: 'James Black', regNumber: '2024CH003', status: 'present', entryTime: '15:12' }
-      ]
-    }
+  'CH202': {
+    '2024-01-26': [
+      { name: 'Alex Turner', regNumber: '2024CH001', status: 'present', entryTime: '15:05' },
+      { name: 'Sophie White', regNumber: '2024CH002', status: 'present', entryTime: '15:08' },
+      { name: 'James Black', regNumber: '2024CH003', status: 'present', entryTime: '15:12' }
+    ]
   },
-  {
-    id: 'EN301',
-    name: 'English Literature',
-    floor: 3,
-    room: 301,
-    presentStudents: 42,
-    totalStudents: 45,
-    avgAttendance: 81.2,
-    students: [
-      { name: 'Grace Kelly', regNumber: '2024EN001', attendanceRate: 84.5 },
-      { name: 'Henry Ford', regNumber: '2024EN002', attendanceRate: 78.9 },
-      { name: 'Ivy Johnson', regNumber: '2024EN003', attendanceRate: 82.1 }
-    ],
-    faculty: {
-      name: 'Dr. William Shakespeare',
-      id: 'FAC005',
-      cabinNumber: 'E-05',
-      position: 'Professor'
-    },
-    attendanceRecords: {
-      '2024-01-26': [
-        { name: 'Grace Kelly', regNumber: '2024EN001', status: 'present', entryTime: '11:05' },
-        { name: 'Henry Ford', regNumber: '2024EN002', status: 'absent', entryTime: '-' },
-        { name: 'Ivy Johnson', regNumber: '2024EN003', status: 'present', entryTime: '11:12' }
-      ]
-    }
+  'EN301': {
+    '2024-01-26': [
+      { name: 'Grace Kelly', regNumber: '2024EN001', status: 'present', entryTime: '11:05' },
+      { name: 'Henry Ford', regNumber: '2024EN002', status: 'absent', entryTime: '-' },
+      { name: 'Ivy Johnson', regNumber: '2024EN003', status: 'present', entryTime: '11:12' }
+    ]
   },
-  {
-    id: 'HI302',
-    name: 'History Seminar',
-    floor: 3,
-    room: 302,
-    presentStudents: 18,
-    totalStudents: 20,
-    avgAttendance: 94.1,
-    students: [
-      { name: 'Kate Winslet', regNumber: '2024HI001', attendanceRate: 96.8 },
-      { name: 'Leo DiCaprio', regNumber: '2024HI002', attendanceRate: 91.4 },
-      { name: 'Meryl Streep', regNumber: '2024HI003', attendanceRate: 94.2 }
-    ],
-    faculty: {
-      name: 'Dr. Elizabeth Tudor',
-      id: 'FAC006',
-      cabinNumber: 'F-18',
-      position: 'Professor'
-    },
-    attendanceRecords: {
-      '2024-01-26': [
-        { name: 'Kate Winslet', regNumber: '2024HI001', status: 'present', entryTime: '13:05' },
-        { name: 'Leo DiCaprio', regNumber: '2024HI002', status: 'present', entryTime: '13:08' },
-        { name: 'Meryl Streep', regNumber: '2024HI003', status: 'present', entryTime: '13:12' }
-      ]
-    }
+  'HI302': {
+    '2024-01-26': [
+      { name: 'Kate Winslet', regNumber: '2024HI001', status: 'present', entryTime: '13:05' },
+      { name: 'Leo DiCaprio', regNumber: '2024HI002', status: 'present', entryTime: '13:08' },
+      { name: 'Meryl Streep', regNumber: '2024HI003', status: 'present', entryTime: '13:12' }
+    ]
   }
-];
+};
 
 function App() {
+  const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [activeTab, setActiveTab] = useState('class-info');
   const [selectedDate, setSelectedDate] = useState('2024-01-26');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleClassroomClick = (classroom) => {
-    setSelectedClassroom(classroom);
-    setActiveTab('class-info');
+  // Load classrooms on component mount
+  useEffect(() => {
+    const loadClassrooms = async () => {
+      try {
+        setLoading(true);
+        const classesData = await getClasses();
+        setClassrooms(classesData);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load classrooms');
+        console.error('Error loading classrooms:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadClassrooms();
+  }, []);
+
+  const handleClassroomClick = async (classroom) => {
+    try {
+      setLoading(true);
+      const classDetails = await getClassDetails(classroom.id);
+      // Add attendance records to the class details
+      const classroomWithAttendance = {
+        ...classDetails,
+        attendanceRecords: mockAttendanceRecords[classroom.id] || {}
+      };
+      setSelectedClassroom(classroomWithAttendance);
+      setActiveTab('class-info');
+      setError(null);
+    } catch (err) {
+      setError('Failed to load class details');
+      console.error('Error loading class details:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBackToClassrooms = () => {
@@ -222,6 +138,39 @@ function App() {
   const getAvailableDates = (classroom) => {
     return Object.keys(classroom.attendanceRecords).sort().reverse();
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <PageLayout>
+        <div className="app">
+          <div className="dashboard">
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <h2>Loading...</h2>
+              <p>Please wait while we fetch the data</p>
+            </div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <PageLayout>
+        <div className="app">
+          <div className="dashboard">
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <h2>Error</h2>
+              <p>{error}</p>
+              <button onClick={() => window.location.reload()}>Retry</button>
+            </div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   if (selectedClassroom) {
     const availableDates = getAvailableDates(selectedClassroom);
@@ -323,7 +272,7 @@ function App() {
                         {selectedClassroom.students.map((student, index) => (
                           <TableRow key={index}>
                             <TableCell>{student.name}</TableCell>
-                            <TableCell>{student.regNumber}</TableCell>
+                            <TableCell>{student.regNo}</TableCell>
                             <TableCell>
                               <span style={{ color: getAttendanceColor(student.attendanceRate) }}>
                                 {student.attendanceRate}%
@@ -468,7 +417,7 @@ function App() {
               onClick={() => handleClassroomClick(classroom)}
             >
               <div className="classroom-header">
-                <GraduationCap size={24} className="class-icon" />
+                <GraduationCap size={48} className="class-icon" />
                 <h3>{classroom.name}</h3>
               </div>
               <div className="classroom-details">

@@ -31,13 +31,13 @@ body {
 .dashboard h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  text-align: center;
+  text-align: left;
   margin-bottom: 0.5rem;
   color: #ffffff;
 }
 
 .dashboard-description {
-  text-align: center;
+  text-align: left;
   color: #a0a0a0;
   font-size: 1.1rem;
   margin-bottom: 3rem;
@@ -68,16 +68,6 @@ body {
   border-color: #4a4a6a;
 }
 
-.classroom-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
-  border-radius: 12px 12px 0 0;
-}
 
 .classroom-header {
   display: flex;
@@ -552,15 +542,15 @@ tr:hover {
    ECS THEME OVERRIDES (Light theme)
    ========================== */
 :root {
-  --ecs-green: #09a46b;
-  --ecs-green-dark: #059669;
+  --ecs-green: 	#3d995f;
+  --ecs-green-dark: #5a7a55;
   --ecs-black: #000000;
   --ecs-text: #0f0f0f;
   --ecs-muted: #4b5563;
-  --ecs-bg: #ffffff;
+  --ecs-bg: #fcfcfd;
   --ecs-surface: #ffffff;
   --ecs-surface-muted: #f3f4f6;
-  --ecs-border: #e5e7eb;
+  --ecs-border: #e4e7e8;
 }
 
 body {
@@ -588,17 +578,16 @@ body {
 .nav-tab.active { background: var(--ecs-black); color: #ffffff; }
 
 .classroom-card {
-  background: var(--ecs-green);
-  border: 1px solid var(--ecs-green-dark);
+  background: var(--ecs-surface);
+  border: 1px solid var(--ecs-border);
 }
-.classroom-card:hover { border-color: var(--ecs-green-dark); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
-.classroom-card::before { background: var(--ecs-green); }
-.class-icon { color: #ffffff; background: rgba(255,255,255,0.2); }
-.classroom-card .classroom-header h3 { color: #0f0f0f; }
-.classroom-card .classroom-details p { color: #0f0f0f; }
-.classroom-card .class-id { color: #065f46 !important; }
-.classroom-card .students-count { color: #0f0f0f !important; background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px; display: inline-block; }
-.classroom-card .attendance-rate { color: #0f0f0f; }
+.classroom-card:hover { border-color: var(--ecs-green); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+.class-icon { color: var(--ecs-green); background: none; }
+.classroom-card .classroom-header h3 { color: var(--ecs-text); }
+.classroom-card .classroom-details p { color: var(--ecs-muted); }
+.classroom-card .class-id { color: var(--ecs-green) !important; }
+.classroom-card .students-count { color: var(--ecs-text) !important; background: var(--ecs-surface-muted); padding: 2px 6px; border-radius: 4px; display: inline-block; }
+.classroom-card .attendance-rate { color: var(--ecs-text); }
 .dashboard h1 { color: var(--ecs-black); }
 .dashboard-description { color: var(--ecs-muted); }
 
