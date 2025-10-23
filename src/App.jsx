@@ -10,70 +10,23 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import PageLayout from '@/components/layout/PageLayout';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { getClasses, getClassDetails } from '@/services/api';
-
-// Mock attendance records (keeping this for now as requested)
-const mockAttendanceRecords = {
-  'CS101': {
-    '2024-01-26': [
-      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:11' },
-      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:14' },
-      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'present', entryTime: '09:16' },
-      { name: 'Emma Davis', regNumber: '2024CS004', status: 'absent', entryTime: '-' },
-      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:09' }
-    ],
-    '2024-01-25': [
-      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:05' },
-      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:12' },
-      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'absent', entryTime: '-' },
-      { name: 'Emma Davis', regNumber: '2024CS004', status: 'present', entryTime: '09:08' },
-      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:15' }
-    ]
-  },
-  'MA102': {
-    '2024-01-26': [
-      { name: 'Sarah Wilson', regNumber: '2024MA001', status: 'present', entryTime: '10:05' },
-      { name: 'David Lee', regNumber: '2024MA002', status: 'present', entryTime: '10:12' },
-      { name: 'Lisa Chen', regNumber: '2024MA003', status: 'present', entryTime: '10:08' }
-    ]
-  },
-  'PH201': {
-    '2024-01-26': [
-      { name: 'Tom Anderson', regNumber: '2024PH001', status: 'present', entryTime: '14:05' },
-      { name: 'Rachel Green', regNumber: '2024PH002', status: 'absent', entryTime: '-' },
-      { name: 'Chris Martin', regNumber: '2024PH003', status: 'present', entryTime: '14:12' }
-    ]
-  },
-  'CH202': {
-    '2024-01-26': [
-      { name: 'Alex Turner', regNumber: '2024CH001', status: 'present', entryTime: '15:05' },
-      { name: 'Sophie White', regNumber: '2024CH002', status: 'present', entryTime: '15:08' },
-      { name: 'James Black', regNumber: '2024CH003', status: 'present', entryTime: '15:12' }
-    ]
-  },
-  'EN301': {
-    '2024-01-26': [
-      { name: 'Grace Kelly', regNumber: '2024EN001', status: 'present', entryTime: '11:05' },
-      { name: 'Henry Ford', regNumber: '2024EN002', status: 'absent', entryTime: '-' },
-      { name: 'Ivy Johnson', regNumber: '2024EN003', status: 'present', entryTime: '11:12' }
-    ]
-  },
-  'HI302': {
-    '2024-01-26': [
-      { name: 'Kate Winslet', regNumber: '2024HI001', status: 'present', entryTime: '13:05' },
-      { name: 'Leo DiCaprio', regNumber: '2024HI002', status: 'present', entryTime: '13:08' },
-      { name: 'Meryl Streep', regNumber: '2024HI003', status: 'present', entryTime: '13:12' }
-    ]
-  }
-};
+import { getClasses, getClassDetails, getAttendanceByDate } from '@/services/api';
+// Removed mock attendance; fetch from backend instead
 
 function App() {
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [activeTab, setActiveTab] = useState('class-info');
-  const [selectedDate, setSelectedDate] = useState('2024-01-26');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentAttendance, setCurrentAttendance] = useState([]);
 
   // Load classrooms on component mount
   useEffect(() => {
@@ -98,12 +51,10 @@ function App() {
     try {
       setLoading(true);
       const classDetails = await getClassDetails(classroom.id);
-      // Add attendance records to the class details
-      const classroomWithAttendance = {
-        ...classDetails,
-        attendanceRecords: mockAttendanceRecords[classroom.id] || {}
-      };
-      setSelectedClassroom(classroomWithAttendance);
+      setSelectedClassroom(classDetails);
+      // set initial attendance to today's if available
+      const todayRecords = classDetails.attendanceRecords?.[selectedDate] || [];
+      setCurrentAttendance(todayRecords);
       setActiveTab('class-info');
       setError(null);
     } catch (err) {
@@ -135,9 +86,26 @@ function App() {
     });
   };
 
-  const getAvailableDates = (classroom) => {
-    return Object.keys(classroom.attendanceRecords).sort().reverse();
-  };
+  // When selectedDate changes and a class is selected, fetch attendance for that date
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (!selectedClassroom) return;
+      try {
+        setLoading(true);
+        const data = await getAttendanceByDate(selectedDate, selectedClassroom.id);
+        setCurrentAttendance(Array.isArray(data) ? data : []);
+        setError(null);
+      } catch (err) {
+        setCurrentAttendance([]);
+        setError(`Failed to load attendance for ${selectedDate}`);
+        console.error('Error loading attendance:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAttendance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, selectedClassroom?.id]);
 
   // Show loading state
   if (loading) {
@@ -173,15 +141,13 @@ function App() {
   }
 
   if (selectedClassroom) {
-    const availableDates = getAvailableDates(selectedClassroom);
-    const availableDatesSet = new Set(availableDates);
+    // We allow any date selection; availability is determined by backend response
     const formatToISO = (dateObj) => {
       const year = dateObj.getFullYear();
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const day = String(dateObj.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
-    const currentAttendance = selectedClassroom.attendanceRecords[selectedDate] || [];
 
     return (
       <PageLayout>
@@ -336,18 +302,16 @@ function App() {
                           onSelect={(day) => {
                             if (!day) return;
                             const iso = formatToISO(day);
-                            if (availableDatesSet.has(iso)) {
-                              setSelectedDate(iso);
-                            }
+                            setSelectedDate(iso);
                           }}
-                          disabled={(day) => !availableDatesSet.has(formatToISO(day))}
+                          disabled={undefined}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
                     <Button 
                       className="latest-class-btn"
-                      onClick={() => setSelectedDate(availableDates[0])}
+                      onClick={() => setSelectedDate((() => { const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; })())}
                     >
                       Latest Class
                     </Button>

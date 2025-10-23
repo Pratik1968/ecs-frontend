@@ -1,154 +1,128 @@
 /**
- * Mock API service to simulate Supabase database calls
- * This will be replaced with actual Supabase API calls when the database is ready
+ * API service backed by the configured backend URL
  */
 
-// Import mock data
-import classesData from '../mock-data/classes.json';
-import studentsData from '../mock-data/students.json';
-import facultyData from '../mock-data/faculty.json';
+const BASE_URL = (import.meta?.env?.VITE_BACKEND_URL || '').replace(/\/+$/,'');
 
-// Simulate network delay
-const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Simulate API error (for testing error handling)
- */
-const simulateError = () => Math.random() < 0.05; // 5% chance of error
-
-/**
- * Get all classes
- * @returns {Promise<Array>} Array of class objects
- */
-export const getClasses = async () => {
-  await delay(300);
-  
-  if (simulateError()) {
-    throw new Error('Failed to fetch classes');
+const assertBaseUrl = () => {
+  if (!BASE_URL) {
+    throw new Error('Backend URL is not configured. Set VITE_BACKEND_URL in .env.local');
   }
-  
-  return classesData;
 };
+
+const fetchJson = async (path, notFoundMessage) => {
+  assertBaseUrl();
+  const url = `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  let res;
+  try {
+    res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  } catch (e) {
+    throw new Error(`Network error while calling ${url}`);
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const detail = text || res.statusText;
+    throw new Error(`Request failed (${res.status}) for ${url}: ${detail}`);
+  }
+  const data = await res.json().catch(() => null);
+  if (data == null) {
+    throw new Error(notFoundMessage || `Empty response from ${url}`);
+  }
+  return data;
+};
+
+/**
+ * Get classrooms (IDs)
+ * Returns an array of classroom objects compatible with the dashboard
+ */
+export const getClassrooms = async () => {
+  const ids = await fetchJson('/classrooms/ids', 'Could not retrieve classroom IDs');
+  // Normalize into the shape used by the dashboard with sensible defaults
+  return (Array.isArray(ids) ? ids : []).map((id) => ({
+    id,
+    name: id,
+    floor: '-',
+    room: '-',
+    totalStudents: 0,
+    presentStudents: 0,
+    avgAttendance: 0
+  }));
+};
+
+/**
+ * Backwards-compatible alias for legacy code
+ */
+export const getClasses = getClassrooms;
 
 /**
  * Get students for a specific class
- * @param {string} classId - The class ID
- * @returns {Promise<Array>} Array of student objects
  */
 export const getStudentsByClass = async (classId) => {
-  await delay(400);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch students for class ${classId}`);
-  }
-  
-  const students = studentsData[classId] || [];
-  return students;
+  if (!classId) throw new Error('Class ID is required');
+  const students = await fetchJson(`/students/class/${encodeURIComponent(classId)}`, `Students not found for class ${classId}`);
+  return Array.isArray(students) ? students : [];
 };
 
 /**
- * Get faculty information by faculty ID
- * @param {string} facultyId - The faculty ID
- * @returns {Promise<Object>} Faculty object
+ * Attendance for today for a class
  */
-export const getFacultyById = async (facultyId) => {
-  await delay(200);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch faculty ${facultyId}`);
-  }
-  
-  const faculty = facultyData[facultyId];
-  if (!faculty) {
-    throw new Error(`Faculty with ID ${facultyId} not found`);
-  }
-  
-  return faculty;
+export const getAttendanceToday = async (classId) => {
+  if (!classId) throw new Error('Class ID is required');
+  const data = await fetchJson(`/attendance/today/${encodeURIComponent(classId)}`, `Today's attendance not found for class ${classId}`);
+  return Array.isArray(data) ? data : [];
 };
 
 /**
- * Get complete class information including students and faculty
- * @param {string} classId - The class ID
- * @returns {Promise<Object>} Complete class object with students and faculty
+ * Attendance for specific date (YYYY-MM-DD) for a class
+ */
+export const getAttendanceByDate = async (date, classId) => {
+  if (!date) throw new Error('Date is required');
+  if (!classId) throw new Error('Class ID is required');
+  const data = await fetchJson(`/attendance/date/${encodeURIComponent(date)}/${encodeURIComponent(classId)}`, `Attendance not found for ${date} and class ${classId}`);
+  return Array.isArray(data) ? data : [];
+};
+
+/**
+ * Compose minimal class details using available endpoints.
+ * Includes students and a rudimentary attendanceRecords with today's date if available.
  */
 export const getClassDetails = async (classId) => {
-  await delay(600);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch class details for ${classId}`);
-  }
-  
-  // Find the class
-  const classInfo = classesData.find(cls => cls.id === classId);
-  if (!classInfo) {
-    throw new Error(`Class with ID ${classId} not found`);
-  }
-  
-  // Get students and faculty for this class
-  const [students, faculty] = await Promise.all([
-    getStudentsByClass(classId),
-    getFacultyById(classInfo.facultyId)
+  if (!classId) throw new Error('Class ID is required');
+  const [students, todayAttendance] = await Promise.all([
+    getStudentsByClass(classId).catch((e) => {
+      // Bubble up with clear context
+      throw new Error(`Failed to fetch students for ${classId}: ${e.message}`);
+    }),
+    getAttendanceToday(classId).catch(() => [])
   ]);
-  
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const iso = `${yyyy}-${mm}-${dd}`;
+
+  const attendanceRecords = todayAttendance.length > 0 ? { [iso]: todayAttendance } : {};
+
   return {
-    ...classInfo,
+    id: classId,
+    name: classId,
+    floor: '-',
+    room: '-',
+    totalStudents: students.length || 0,
+    presentStudents: Array.isArray(todayAttendance) ? todayAttendance.filter(r => String(r.status).toLowerCase() === 'present').length : 0,
+    avgAttendance: 0,
     students,
-    faculty
+    faculty: { name: 'N/A', id: '-', cabinNumber: '-', position: '-' },
+    attendanceRecords
   };
 };
 
-/**
- * Get student by registration number
- * @param {string} regNo - Student registration number
- * @returns {Promise<Object>} Student object
- */
-export const getStudentByRegNo = async (regNo) => {
-  await delay(300);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch student ${regNo}`);
-  }
-  
-  // Search through all students
-  for (const classId in studentsData) {
-    const student = studentsData[classId].find(s => s.regNo === regNo);
-    if (student) {
-      return student;
-    }
-  }
-  
-  throw new Error(`Student with registration number ${regNo} not found`);
-};
-
-/**
- * Get student by barcode
- * @param {string} barcode - Student barcode
- * @returns {Promise<Object>} Student object
- */
-export const getStudentByBarcode = async (barcode) => {
-  await delay(300);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch student with barcode ${barcode}`);
-  }
-  
-  // Search through all students
-  for (const classId in studentsData) {
-    const student = studentsData[classId].find(s => s.barcode === barcode);
-    if (student) {
-      return student;
-    }
-  }
-  
-  throw new Error(`Student with barcode ${barcode} not found`);
-};
-
-// Export all functions as default object for easier importing
 export default {
+  getClassrooms,
   getClasses,
   getStudentsByClass,
-  getFacultyById,
-  getClassDetails,
-  getStudentByRegNo,
-  getStudentByBarcode
+  getAttendanceToday,
+  getAttendanceByDate,
+  getClassDetails
 };
