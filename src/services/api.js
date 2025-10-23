@@ -1,33 +1,55 @@
 /**
- * Mock API service to simulate Supabase database calls
- * This will be replaced with actual Supabase API calls when the database is ready
+ * API service for ECS Attendance System
+ * Connects to backend API at http://localhost:3000
  */
 
-// Import mock data
-import classesData from '../mock-data/classes.json';
-import studentsData from '../mock-data/students.json';
-import facultyData from '../mock-data/faculty.json';
+const API_BASE_URL = 'http://localhost:3000';
 
-// Simulate network delay
-const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper function to make API calls
+const apiCall = async (endpoint, options = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  };
+
+  try {
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`API call failed for ${endpoint}:`, error);
+    throw error;
+  }
+};
 
 /**
- * Simulate API error (for testing error handling)
+ * Authentication
  */
-const simulateError = () => Math.random() < 0.05; // 5% chance of error
+export const login = async (username, password) => {
+  return await apiCall('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      username,
+      password
+    }),
+  });
+};
 
 /**
- * Get all classes
- * @returns {Promise<Array>} Array of class objects
+ * Get all classroom IDs
+ * @returns {Promise<Array>} Array of classroom objects
  */
 export const getClasses = async () => {
-  await delay(300);
-  
-  if (simulateError()) {
-    throw new Error('Failed to fetch classes');
-  }
-  
-  return classesData;
+  return await apiCall('/classrooms/ids');
 };
 
 /**
@@ -36,65 +58,7 @@ export const getClasses = async () => {
  * @returns {Promise<Array>} Array of student objects
  */
 export const getStudentsByClass = async (classId) => {
-  await delay(400);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch students for class ${classId}`);
-  }
-  
-  const students = studentsData[classId] || [];
-  return students;
-};
-
-/**
- * Get faculty information by faculty ID
- * @param {string} facultyId - The faculty ID
- * @returns {Promise<Object>} Faculty object
- */
-export const getFacultyById = async (facultyId) => {
-  await delay(200);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch faculty ${facultyId}`);
-  }
-  
-  const faculty = facultyData[facultyId];
-  if (!faculty) {
-    throw new Error(`Faculty with ID ${facultyId} not found`);
-  }
-  
-  return faculty;
-};
-
-/**
- * Get complete class information including students and faculty
- * @param {string} classId - The class ID
- * @returns {Promise<Object>} Complete class object with students and faculty
- */
-export const getClassDetails = async (classId) => {
-  await delay(600);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch class details for ${classId}`);
-  }
-  
-  // Find the class
-  const classInfo = classesData.find(cls => cls.id === classId);
-  if (!classInfo) {
-    throw new Error(`Class with ID ${classId} not found`);
-  }
-  
-  // Get students and faculty for this class
-  const [students, faculty] = await Promise.all([
-    getStudentsByClass(classId),
-    getFacultyById(classInfo.facultyId)
-  ]);
-  
-  return {
-    ...classInfo,
-    students,
-    faculty
-  };
+  return await apiCall(`/students/class/${classId}`);
 };
 
 /**
@@ -103,52 +67,187 @@ export const getClassDetails = async (classId) => {
  * @returns {Promise<Object>} Student object
  */
 export const getStudentByRegNo = async (regNo) => {
-  await delay(300);
-  
-  if (simulateError()) {
-    throw new Error(`Failed to fetch student ${regNo}`);
-  }
-  
-  // Search through all students
-  for (const classId in studentsData) {
-    const student = studentsData[classId].find(s => s.regNo === regNo);
-    if (student) {
-      return student;
-    }
-  }
-  
-  throw new Error(`Student with registration number ${regNo} not found`);
+  return await apiCall(`/students/${regNo}`);
 };
 
 /**
- * Get student by barcode
- * @param {string} barcode - Student barcode
- * @returns {Promise<Object>} Student object
+ * Get student attendance history
+ * @param {string} regNo - Student registration number
+ * @returns {Promise<Array>} Array of attendance records
  */
-export const getStudentByBarcode = async (barcode) => {
-  await delay(300);
+export const getStudentAttendanceHistory = async (regNo) => {
+  return await apiCall(`/attendance/student/${regNo}`);
+};
+
+/**
+ * Get today's attendance for a class
+ * @param {string} classId - The class ID
+ * @returns {Promise<Array>} Array of attendance records
+ */
+export const getTodayAttendance = async (classId) => {
+  return await apiCall(`/attendance/today/${classId}`);
+};
+
+/**
+ * Get attendance statistics for a class
+ * @param {string} classId - The class ID
+ * @returns {Promise<Object>} Attendance statistics
+ */
+export const getAttendanceStats = async (classId) => {
+  return await apiCall(`/attendance/stats/${classId}`);
+};
+
+/**
+ * Get complete class information including students and attendance data
+ * @param {string} classId - The class ID
+ * @returns {Promise<Object>} Complete class object with students and attendance
+ */
+export const getClassDetails = async (classId) => {
+  // Get students and attendance data for this class
+  const [students, attendanceStats, todayAttendance] = await Promise.all([
+    getStudentsByClass(classId),
+    getAttendanceStats(classId),
+    getTodayAttendance(classId)
+  ]);
   
-  if (simulateError()) {
-    throw new Error(`Failed to fetch student with barcode ${barcode}`);
-  }
-  
-  // Search through all students
-  for (const classId in studentsData) {
-    const student = studentsData[classId].find(s => s.barcode === barcode);
-    if (student) {
-      return student;
-    }
-  }
-  
-  throw new Error(`Student with barcode ${barcode} not found`);
+  return {
+    id: classId,
+    students,
+    attendanceStats,
+    todayAttendance
+  };
+};
+
+/**
+ * Exam Management API functions
+ */
+
+/**
+ * Get all exams
+ * @returns {Promise<Array>} Array of exam objects
+ */
+export const getExams = async () => {
+  return await apiCall('/exams');
+};
+
+/**
+ * Get exam by ID
+ * @param {string} examId - The exam ID
+ * @returns {Promise<Object>} Exam object
+ */
+export const getExamById = async (examId) => {
+  return await apiCall(`/exams/${examId}`);
+};
+
+/**
+ * Get upcoming exams (Admin only)
+ * @returns {Promise<Array>} Array of upcoming exam objects
+ */
+export const getUpcomingExams = async () => {
+  return await apiCall('/exams/upcoming');
+};
+
+/**
+ * Get seating arrangement for an exam
+ * @param {string} examId - The exam ID
+ * @returns {Promise<Object>} Seating arrangement object
+ */
+export const getExamSeating = async (examId) => {
+  return await apiCall(`/exams/${examId}/seating`);
+};
+
+/**
+ * Create new exam
+ * @param {Object} examData - Exam data
+ * @returns {Promise<Object>} Created exam object
+ */
+export const createExam = async (examData) => {
+  return await apiCall('/exams', {
+    method: 'POST',
+    body: JSON.stringify(examData),
+  });
+};
+
+/**
+ * Update exam
+ * @param {string} examId - The exam ID
+ * @param {Object} examData - Updated exam data
+ * @returns {Promise<Object>} Updated exam object
+ */
+export const updateExam = async (examId, examData) => {
+  return await apiCall(`/exams/${examId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(examData),
+  });
+};
+
+/**
+ * Delete exam
+ * @param {string} examId - The exam ID
+ * @returns {Promise<Object>} Deletion confirmation
+ */
+export const deleteExam = async (examId) => {
+  return await apiCall(`/exams/${examId}`, {
+    method: 'DELETE',
+  });
+};
+
+/**
+ * Assign seating for an exam
+ * @param {string} examId - The exam ID
+ * @param {Object} seatingData - Seating assignment data
+ * @returns {Promise<Object>} Seating assignment result
+ */
+export const assignSeating = async (examId, seatingData) => {
+  return await apiCall(`/exams/${examId}/seating`, {
+    method: 'POST',
+    body: JSON.stringify(seatingData),
+  });
+};
+
+/**
+ * Bulk assign students to seats for exam (Admin only)
+ * @param {string} examId - The exam ID
+ * @param {Array} assignments - Array of seating assignments
+ * @returns {Promise<Object>} Bulk assignment result
+ */
+export const bulkAssignSeating = async (examId, assignments) => {
+  return await apiCall(`/exams/${examId}/seating/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(assignments),
+  });
+};
+
+/**
+ * Remove seating assignment for student (Admin only)
+ * @param {string} examId - The exam ID
+ * @param {string} regNo - Student registration number
+ * @returns {Promise<Object>} Removal confirmation
+ */
+export const removeSeatingAssignment = async (examId, regNo) => {
+  return await apiCall(`/exams/${examId}/seating/${regNo}`, {
+    method: 'DELETE',
+  });
 };
 
 // Export all functions as default object for easier importing
 export default {
+  login,
   getClasses,
   getStudentsByClass,
-  getFacultyById,
-  getClassDetails,
   getStudentByRegNo,
-  getStudentByBarcode
+  getStudentAttendanceHistory,
+  getTodayAttendance,
+  getAttendanceStats,
+  getClassDetails,
+  getExams,
+  getExamById,
+  getUpcomingExams,
+  getExamSeating,
+  createExam,
+  updateExam,
+  deleteExam,
+  assignSeating,
+  bulkAssignSeating,
+  removeSeatingAssignment
 };

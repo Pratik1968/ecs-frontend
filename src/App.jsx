@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Users, User, Clock, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { GraduationCap, Users, User, Clock, ArrowLeft, Calendar as CalendarIcon, ToggleLeft, ToggleRight } from 'lucide-react';
 import './App.css';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -8,9 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import PageLayout from '@/components/layout/PageLayout';
+import MainNavigation from '@/components/layout/MainNavigation';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { getClasses, getClassDetails } from '@/services/api';
+import { getClasses, getClassDetails, getTodayAttendance } from '@/services/api';
+import StudentDashboard from '@/components/StudentDashboard';
+import ExamSeatingArrangement from '@/components/ExamSeatingArrangement';
+import AdminExamSeating from '@/components/AdminExamSeating';
+import LoginPage from '@/components/LoginPage';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 // Mock attendance records (keeping this for now as requested)
 const mockAttendanceRecords = {
@@ -67,7 +73,8 @@ const mockAttendanceRecords = {
   }
 };
 
-function App() {
+// Admin Dashboard Component
+function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [activeTab, setActiveTab] = useState('class-info');
@@ -139,16 +146,15 @@ function App() {
     return Object.keys(classroom.attendanceRecords).sort().reverse();
   };
 
+
   // Show loading state
   if (loading) {
     return (
       <PageLayout>
-        <div className="app">
-          <div className="dashboard">
-            <div style={{ textAlign: 'center', padding: '2rem' }}>
-              <h2>Loading...</h2>
-              <p>Please wait while we fetch the data</p>
-            </div>
+        <div className="dashboard">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <h2>Loading...</h2>
+            <p>Please wait while we fetch the data</p>
           </div>
         </div>
       </PageLayout>
@@ -159,13 +165,11 @@ function App() {
   if (error) {
     return (
       <PageLayout>
-        <div className="app">
-          <div className="dashboard">
-            <div style={{ textAlign: 'center', padding: '2rem' }}>
-              <h2>Error</h2>
-              <p>{error}</p>
-              <button onClick={() => window.location.reload()}>Retry</button>
-            </div>
+        <div className="dashboard">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <h2>Error</h2>
+            <p>{error}</p>
+            <button onClick={() => window.location.reload()}>Retry</button>
           </div>
         </div>
       </PageLayout>
@@ -185,7 +189,6 @@ function App() {
 
     return (
       <PageLayout>
-      <div className="app">
         <div className="header">
           <Button variant="ghost" className="back-button" onClick={handleBackToClassrooms}>
             <ArrowLeft size={20} />
@@ -395,19 +398,21 @@ function App() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
       </PageLayout>
     );
   }
 
   return (
     <PageLayout>
-    <div className="app">
       <div className="dashboard">
-        <h1>College Attendance Dashboard</h1>
-        <p className="dashboard-description">
-          Select a classroom to view detailed attendance information
-        </p>
+        <div className="dashboard-header">
+          <div>
+            <h1>Admin Dashboard</h1>
+            <p className="dashboard-description">
+              Select a classroom to view detailed attendance information
+            </p>
+          </div>
+        </div>
         
         <div className="classrooms-grid">
           {classrooms.map((classroom) => (
@@ -437,9 +442,76 @@ function App() {
           ))}
         </div>
       </div>
-    </div>
     </PageLayout>
   );
 }
 
-export default App;
+// Main App Component with Authentication
+function App() {
+  const { isAuthenticated, userType, isLoading } = useAuth();
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="app">
+        <div className="dashboard">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <h2>Loading...</h2>
+            <p>Please wait while we check your authentication</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  const renderCurrentPage = () => {
+    if (userType === 'student') {
+      switch (currentPage) {
+        case 'dashboard':
+          return <StudentDashboard />;
+        case 'exam-seating':
+          return <ExamSeatingArrangement />;
+        default:
+          return <StudentDashboard />;
+      }
+    } else {
+      // Admin user
+      switch (currentPage) {
+        case 'dashboard':
+          return <AdminDashboard />;
+        case 'exam-seating':
+          return <AdminExamSeating />;
+        default:
+          return <AdminDashboard />;
+      }
+    }
+  };
+
+  return (
+    <div className="app">
+      <MainNavigation 
+        currentPage={currentPage} 
+        onPageChange={setCurrentPage} 
+        userType={userType}
+      />
+      {renderCurrentPage()}
+    </div>
+  );
+}
+
+// App with Auth Provider
+function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}
+
+export default AppWithAuth;
