@@ -11,140 +11,182 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0f0f23;
-  color: #ffffff;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #1f2937;
   line-height: 1.6;
+  min-height: 100vh;
 }
 
 .app {
   min-height: 100vh;
-  background-color: #0f0f23;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
 }
 
 /* Dashboard Overview */
 .dashboard {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 32px 24px;
+}
+
+.dashboard-header {
+  margin-bottom: 40px;
 }
 
 .dashboard h1 {
   font-size: 2.5rem;
-  font-weight: 700;
+  font-weight: 800;
   text-align: left;
-  margin-bottom: 0.5rem;
-  color: #ffffff;
+  margin-bottom: 8px;
+  color: #1f2937;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .dashboard-description {
   text-align: left;
-  color: #a0a0a0;
+  color: #6b7280;
   font-size: 1.1rem;
-  margin-bottom: 3rem;
+  font-weight: 500;
+  margin: 0;
 }
 
 /* Classrooms Grid */
 .classrooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
   margin-top: 2rem;
 }
 
 .classroom-card {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border: 1px solid #2d2d44;
-  border-radius: 12px;
-  padding: 1.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .classroom-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  border-color: #4a4a6a;
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+}
+
+.classroom-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.classroom-card:hover::before {
+  opacity: 1;
 }
 
 
 .classroom-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .class-icon {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-  padding: 0.5rem;
-  border-radius: 8px;
+  color: #667eea;
+  background: linear-gradient(135deg, #667eea15, #764ba215);
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
 .classroom-header h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.classroom-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .classroom-details p {
-  margin-bottom: 0.5rem;
-  color: #d1d5db;
-  font-size: 0.9rem;
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.classroom-location {
+  color: #374151 !important;
+  font-weight: 600 !important;
 }
 
 .class-id {
-  font-weight: 500;
-  color: #60a5fa !important;
-}
-
-.students-count {
-  font-weight: 500;
-  color: #fbbf24 !important;
-}
-
-.attendance-rate {
-  font-weight: 500;
-  margin-top: 0.75rem;
+  color: #667eea !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
 }
 
 /* Header and Navigation */
 .header {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-bottom: 1px solid #2d2d44;
-  padding: 1.5rem 2rem;
-  margin-bottom: 2rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 24px 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .back-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: none;
+  gap: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
-  color: #60a5fa;
-  font-size: 0.9rem;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 0.5rem 0;
-  transition: color 0.2s ease;
+  padding: 12px 20px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .back-button:hover {
-  color: #93c5fd;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
 .header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0.5rem 0;
-  color: #ffffff;
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 16px 0 8px 0;
+  color: #1f2937;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .class-details {
-  color: #a0a0a0;
+  color: #6b7280;
   font-size: 1rem;
+  font-weight: 500;
   margin: 0;
 }
 
@@ -1293,4 +1335,65 @@ Debug Navigation Styles */
   100% {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
+}
+
+/* Enhanced Debug Navigation Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Debug button hover effects */
+.debug-nav-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.debug-nav-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.debug-nav-button:hover::before {
+  left: 100%;
+}
+
+/* Smooth scrollbar for debug panel */
+.debug-panel-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.debug-panel-card::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.debug-panel-card::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.debug-panel-card::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

@@ -34,15 +34,32 @@ function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', { username, password });
       const response = await apiLogin(username, password);
+      console.log('Login response:', response);
       
-      if (response.success) {
-        // For now, we only have admin login, so set userType to 'admin'
-        login(response.user, 'admin');
+      // Check if we have access_token and admin data (successful login)
+      if (response.access_token && response.admin) {
+        console.log('Login successful, creating user object...');
+        // Create user object from the admin data
+        const user = {
+          id: response.admin.id,
+          username: response.admin.username,
+          email: response.admin.email,
+          name: response.admin.full_name,
+          accessToken: response.access_token
+        };
+        
+        console.log('User object created:', user);
+        // Login as admin
+        login(user, 'admin');
+        console.log('Login function called');
       } else {
-        setError(response.message || 'Invalid username or password');
+        console.log('Login failed - missing access_token or admin data');
+        setError('Invalid username or password');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);

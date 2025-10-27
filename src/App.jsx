@@ -18,6 +18,8 @@ import AdminExamSeating from '@/components/AdminExamSeating';
 import LoginPage from '@/components/LoginPage';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import DebugNavigation from '@/components/DebugNavigation';
+import ApiTestPanel from '@/components/ApiTestPanel';
+import StudentManagement from '@/components/StudentManagement';
 
 // Mock attendance records (keeping this for now as requested)
 const mockAttendanceRecords = {
@@ -75,7 +77,7 @@ const mockAttendanceRecords = {
 };
 
 // Admin Dashboard Component
-function AdminDashboard() {
+function AdminDashboard({ navigateWithParams }) {
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [activeTab, setActiveTab] = useState('class-info');
@@ -262,7 +264,35 @@ function AdminDashboard() {
             <TabsContent value="students">
               <div className="content">
                 <div className="student-list">
-                  <h3><Users size={20} /> Student List</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0' }}>
+                      <Users size={20} /> Student List ({selectedClassroom.students.length})
+                    </h3>
+                    <Button
+                      onClick={() => {
+                        // Navigate to student management with this class pre-selected
+                        navigateWithParams('students', { 
+                          selectedClass: selectedClassroom.id,
+                          classContext: selectedClassroom.name 
+                        });
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <User size={16} />
+                      Add Student
+                    </Button>
+                  </div>
                   <div className="table-container">
                     <Table>
                       <TableHeader>
@@ -273,17 +303,27 @@ function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selectedClassroom.students.map((student, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{student.name}</TableCell>
-                            <TableCell>{student.regNo}</TableCell>
-                            <TableCell>
-                              <span style={{ color: getAttendanceColor(student.attendanceRate) }}>
-                                {student.attendanceRate}%
-                              </span>
+                        {selectedClassroom.students.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                              <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                              <p style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>No students enrolled</p>
+                              <p style={{ margin: '0', fontSize: '14px' }}>Use the "Add Student" button to enroll students in this class</p>
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ) : (
+                          selectedClassroom.students.map((student, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{student.name}</TableCell>
+                              <TableCell>{student.regNo}</TableCell>
+                              <TableCell>
+                                <span style={{ color: getAttendanceColor(student.attendanceRate) }}>
+                                  {student.attendanceRate}%
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -427,17 +467,8 @@ function AdminDashboard() {
                 <h3>{classroom.name}</h3>
               </div>
               <div className="classroom-details">
-                <p>Floor {classroom.floor} - Room {classroom.room}</p>
+                <p className="classroom-location">Floor {classroom.floor} - Room {classroom.room}</p>
                 <p className="class-id">Class ID: {classroom.id}</p>
-                <p className="students-count">
-                  Students: {classroom.presentStudents}/{classroom.totalStudents}
-                </p>
-                <p className="attendance-rate">
-                  Avg Attendance: 
-                  <span style={{ color: getAttendanceColor(classroom.avgAttendance) }}>
-                    {' '}{classroom.avgAttendance}%
-                  </span>
-                </p>
               </div>
             </div>
           ))}
@@ -448,7 +479,7 @@ function AdminDashboard() {
 }
 
 // Main App Component with Authentication
-function App({ currentPage, setCurrentPage }) {
+function App({ currentPage, setCurrentPage, pageParams, navigateWithParams }) {
   const { isAuthenticated, userType, isLoading } = useAuth();
 
   // Show loading state while checking authentication
@@ -484,9 +515,16 @@ function App({ currentPage, setCurrentPage }) {
       // Admin user
       switch (currentPage) {
         case 'dashboard':
-          return <AdminDashboard />;
+          return <AdminDashboard navigateWithParams={navigateWithParams} />;
+        case 'students':
+          return <StudentManagement 
+            pageParams={pageParams} 
+            onNavigateBack={() => setCurrentPage('dashboard')}
+          />;
         case 'exam-seating':
           return <AdminExamSeating />;
+        case 'api-test':
+          return <ApiTestPanel />;
         default:
           return <AdminDashboard />;
       }
@@ -518,6 +556,7 @@ function AppWithAuth() {
 function AppWithDebug() {
   const { isAuthenticated, userType, isLoading, switchUserType, logout, login } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [pageParams, setPageParams] = useState({});
 
   const handlePageNavigation = (pageId, requiredUserType) => {
     console.log('Debug Navigation:', { pageId, requiredUserType, isAuthenticated, userType });
@@ -554,11 +593,23 @@ function AppWithDebug() {
     // Navigate to page
     console.log('Navigating to page:', pageId);
     setCurrentPage(pageId);
+    setPageParams({}); // Clear params when navigating normally
+  };
+
+  // Function to navigate with parameters
+  const navigateWithParams = (pageId, params = {}) => {
+    setCurrentPage(pageId);
+    setPageParams(params);
   };
 
   return (
     <>
-      <App currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <App 
+        currentPage={currentPage} 
+        setCurrentPage={setCurrentPage}
+        pageParams={pageParams}
+        navigateWithParams={navigateWithParams}
+      />
       <DebugNavigation
         currentPage={isAuthenticated ? currentPage : 'login'}
         onPageChange={handlePageNavigation}
