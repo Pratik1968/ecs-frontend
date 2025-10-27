@@ -17,6 +17,7 @@ import ExamSeatingArrangement from '@/components/ExamSeatingArrangement';
 import AdminExamSeating from '@/components/AdminExamSeating';
 import LoginPage from '@/components/LoginPage';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import DebugNavigation from '@/components/DebugNavigation';
 
 // Mock attendance records (keeping this for now as requested)
 const mockAttendanceRecords = {
@@ -447,9 +448,8 @@ function AdminDashboard() {
 }
 
 // Main App Component with Authentication
-function App() {
+function App({ currentPage, setCurrentPage }) {
   const { isAuthenticated, userType, isLoading } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -509,8 +509,63 @@ function App() {
 function AppWithAuth() {
   return (
     <AuthProvider>
-      <App />
+      <AppWithDebug />
     </AuthProvider>
+  );
+}
+
+// Wrapper component to provide debug navigation at all times
+function AppWithDebug() {
+  const { isAuthenticated, userType, isLoading, switchUserType, logout, login } = useAuth();
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  const handlePageNavigation = (pageId, requiredUserType) => {
+    console.log('Debug Navigation:', { pageId, requiredUserType, isAuthenticated, userType });
+    
+    if (requiredUserType === 'none') {
+      // For login page, trigger logout
+      if (pageId === 'login') {
+        console.log('Logging out...');
+        logout();
+        return;
+      }
+    }
+    
+    // If not authenticated and trying to access admin/student pages, auto-authenticate
+    if (!isAuthenticated && (requiredUserType === 'admin' || requiredUserType === 'student')) {
+      console.log('Auto-authenticating as:', requiredUserType);
+      // Auto-authenticate for debugging purposes
+      const mockUser = {
+        id: requiredUserType === 'admin' ? 'admin001' : 'student001',
+        name: requiredUserType === 'admin' ? 'Debug Admin' : 'Debug Student',
+        email: requiredUserType === 'admin' ? 'admin@debug.com' : 'student@debug.com'
+      };
+      
+      // Use the login function from auth context
+      login(mockUser, requiredUserType);
+    }
+    
+    // Switch user type if needed (for already authenticated users)
+    if (isAuthenticated && requiredUserType !== userType && requiredUserType !== 'none') {
+      console.log('Switching user type from', userType, 'to', requiredUserType);
+      switchUserType(requiredUserType);
+    }
+    
+    // Navigate to page
+    console.log('Navigating to page:', pageId);
+    setCurrentPage(pageId);
+  };
+
+  return (
+    <>
+      <App currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <DebugNavigation
+        currentPage={isAuthenticated ? currentPage : 'login'}
+        onPageChange={handlePageNavigation}
+        userType={isAuthenticated ? userType : 'none'}
+        onUserTypeChange={switchUserType}
+      />
+    </>
   );
 }
 
