@@ -5,9 +5,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f0f23;
+  color-scheme: light;
+  color: #0f0f0f;
+  background-color: #fcfcfd;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -28,8 +28,8 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #0f0f23;
-  color: #ffffff;
+  background-color: #fcfcfd;
+  color: #0f0f0f;
 }
 
 #root {
@@ -45,22 +45,22 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: #f3f4f6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4a4a6a;
+  background: #e4e7e8;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5a5a7a;
+  background: #d1d5db;
 }
 
 /* Focus styles for accessibility */
 button:focus,
 select:focus {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid #72966d;
   outline-offset: 2px;
 }
 
