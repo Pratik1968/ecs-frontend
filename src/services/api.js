@@ -38,6 +38,26 @@ const apiCall = async (endpoint, options = {}) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+
+      // Handle specific API error codes as per documentation
+      if (response.status === 404) {
+        throw new Error('Exam or student not found');
+      }
+
+      if (response.status === 409) {
+        throw new Error('Student already assigned or seat taken');
+      }
+
+      if (response.status === 500) {
+        console.error('Server error details:', errorData);
+        throw new Error('Internal server error. Please check the backend logs for details.');
+      }
+
+      // Handle specific database constraint errors
+      if (errorData.message && errorData.message.includes('duplicate key value violates unique constraint')) {
+        throw new Error('This seat assignment already exists or there is a conflict. Please try again.');
+      }
+
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
 
@@ -292,24 +312,31 @@ export const getClassDetails = async (classId) => {
 export const getExams = async () => {
   const exams = await apiCall('/exams');
   return exams.map(exam => ({
-    id: exam.id,
+    id: Number(exam.examID), // Use examID from backend
+    examID: Number(exam.examID), // Keep original examID for API calls
     name: exam.exam_name,
     subject: exam.subject,
-    date: exam.exam_date,
+    date: exam.date, // Use 'date' field from backend
     duration: exam.duration,
     classId: exam.classID,
     description: exam.description,
-    status: new Date(exam.exam_date) > new Date() ? 'upcoming' : 'completed'
+    status: new Date(exam.date) > new Date() ? 'upcoming' : 'completed',
+    examSeatings: exam.examSeatings || [] // Include seating data if available
   }));
 };
 
 /**
  * Get exam by ID
- * @param {string} examId - The exam ID
+ * @param {string|number} examId - The exam ID
  * @returns {Promise<Object>} Exam object
  */
 export const getExamById = async (examId) => {
-  return await apiCall(`/exams/${examId}`);
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+  return await apiCall(`/exams/${numericExamId}`);
 };
 
 /**
@@ -319,24 +346,67 @@ export const getExamById = async (examId) => {
 export const getUpcomingExams = async () => {
   const exams = await apiCall('/exams/upcoming');
   return exams.map(exam => ({
-    id: exam.id,
+    id: Number(exam.examID), // Use examID from backend
+    examID: Number(exam.examID), // Keep original examID for API calls
     name: exam.exam_name,
     subject: exam.subject,
-    date: exam.exam_date,
+    date: exam.date, // Use 'date' field from backend
     duration: exam.duration,
     classId: exam.classID,
     description: exam.description,
-    status: 'upcoming'
+    status: 'upcoming',
+    examSeatings: exam.examSeatings || [] // Include seating data if available
+  }));
+};
+
+/**
+ * Get exams by class ID
+ * @param {string} classId - The class ID
+ * @returns {Promise<Array>} Array of exam objects for the class
+ */
+export const getExamsByClass = async (classId) => {
+  const exams = await apiCall(`/exams/class/${classId}`);
+  return exams.map(exam => ({
+    id: Number(exam.examID),
+    examID: Number(exam.examID),
+    name: exam.exam_name,
+    subject: exam.subject,
+    date: exam.date,
+    duration: exam.duration,
+    classId: exam.classID,
+    description: exam.description,
+    status: new Date(exam.date) > new Date() ? 'upcoming' : 'completed',
+    examSeatings: exam.examSeatings || []
   }));
 };
 
 /**
  * Get seating arrangement for an exam
- * @param {string} examId - The exam ID
- * @returns {Promise<Object>} Seating arrangement object
+ * @param {string|number} examId - The exam ID
+ * @returns {Promise<Array>} Array of seating arrangement objects
  */
 export const getExamSeating = async (examId) => {
-  return await apiCall(`/exams/${examId}/seating`);
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+
+  try {
+    // Try to get seating data directly
+    const seatingData = await apiCall(`/exams/${numericExamId}/seating`);
+    return seatingData;
+  } catch (error) {
+    // If direct seating API fails, try to get exam data which includes seating
+    console.warn('Direct seating API failed, trying to get exam data:', error);
+    try {
+      const examData = await apiCall(`/exams/${numericExamId}`);
+      return examData.examSeatings || [];
+    } catch (examError) {
+      console.error('Failed to get exam seating data:', examError);
+      throw new Error('Failed to load seating arrangement');
+    }
+  }
 };
 
 /**
@@ -372,12 +442,17 @@ export const createExam = async (examData) => {
 
 /**
  * Update exam
- * @param {string} examId - The exam ID
+ * @param {string|number} examId - The exam ID
  * @param {Object} examData - Updated exam data
  * @returns {Promise<Object>} Updated exam object
  */
 export const updateExam = async (examId, examData) => {
-  return await apiCall(`/exams/${examId}`, {
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+  return await apiCall(`/exams/${numericExamId}`, {
     method: 'PATCH',
     body: JSON.stringify(examData),
   });
@@ -385,25 +460,60 @@ export const updateExam = async (examId, examData) => {
 
 /**
  * Delete exam
- * @param {string} examId - The exam ID
+ * @param {string|number} examId - The exam ID
  * @returns {Promise<Object>} Deletion confirmation
  */
 export const deleteExam = async (examId) => {
-  return await apiCall(`/exams/${examId}`, {
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+  return await apiCall(`/exams/${numericExamId}`, {
     method: 'DELETE',
   });
 };
 
 /**
  * Assign seating for an exam
- * @param {string} examId - The exam ID
+ * @param {string|number} examId - The exam ID
  * @param {Object} seatingData - Seating assignment data
  * @returns {Promise<Object>} Seating assignment result
  */
 export const assignSeating = async (examId, seatingData) => {
-  return await apiCall(`/exams/${examId}/seating`, {
+  // Validate inputs
+  if (!examId) {
+    throw new Error('Exam ID is required');
+  }
+
+  if (!seatingData || !seatingData.regNo || !seatingData.seatNo) {
+    throw new Error('Student registration number and seat number are required');
+  }
+
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+
+  const requestBody = {
+    regNo: seatingData.regNo,
+    seatNo: seatingData.seatNo  // Send as string (R1C2 format) since database expects varchar
+  };
+
+  console.log('=== SEAT ASSIGNMENT DEBUG ===');
+  console.log('Original seatingData:', seatingData);
+  console.log('Request body:', requestBody);
+  console.log('seatNo type:', typeof requestBody.seatNo);
+  console.log('seatNo value:', requestBody.seatNo);
+  console.log('Exam ID:', numericExamId);
+  console.log('Full URL:', `${API_BASE_URL}/exams/${numericExamId}/seating`);
+  console.log('Request payload:', JSON.stringify(requestBody));
+  console.log('==============================');
+
+  return await apiCall(`/exams/${numericExamId}/seating`, {
     method: 'POST',
-    body: JSON.stringify(seatingData),
+    body: JSON.stringify(requestBody),
   });
 };
 
@@ -414,14 +524,20 @@ export const assignSeating = async (examId, seatingData) => {
  * @returns {Promise<Object>} Bulk assignment result
  */
 export const bulkAssignSeating = async (examId, assignments) => {
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+
   const requestBody = {
     assignments: assignments.map(assignment => ({
-      regNo: assignment.regNo,
-      seatNo: assignment.seatNo
+      regNo: String(assignment.regNo),
+      seatNo: assignment.seatNo  // Send as string (R1C2 format) since database expects varchar
     }))
   };
 
-  return await apiCall(`/exams/${examId}/seating/bulk`, {
+  return await apiCall(`/exams/${numericExamId}/seating/bulk`, {
     method: 'POST',
     body: JSON.stringify(requestBody),
   });
@@ -429,12 +545,17 @@ export const bulkAssignSeating = async (examId, assignments) => {
 
 /**
  * Remove seating assignment for student (Admin only)
- * @param {string} examId - The exam ID
+ * @param {string|number} examId - The exam ID
  * @param {string} regNo - Student registration number
  * @returns {Promise<Object>} Removal confirmation
  */
 export const removeSeatingAssignment = async (examId, regNo) => {
-  return await apiCall(`/exams/${examId}/seating/${regNo}`, {
+  // Ensure examId is a valid numeric string
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+  return await apiCall(`/exams/${numericExamId}/seating/${regNo}`, {
     method: 'DELETE',
   });
 };
@@ -531,6 +652,7 @@ export default {
   getExams,
   getExamById,
   getUpcomingExams,
+  getExamsByClass,
   getExamSeating,
   createExam,
   updateExam,

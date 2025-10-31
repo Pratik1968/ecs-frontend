@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Users, User, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PageLayout from '@/components/layout/PageLayout';
-import { getExams, getExamSeating } from '@/services/api';
+import { getExams, getExamSeating, getExamsByClass } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 function ExamSeatingArrangement() {
@@ -36,9 +36,12 @@ function ExamSeatingArrangement() {
   const handleExamSelect = async (exam) => {
     try {
       setLoading(true);
-      const seating = await getExamSeating(exam.id);
+      // Use classID to get exams for that class, then find seating for this specific exam
+      const classExams = await getExamsByClass(exam.classId);
+      const selectedExamData = classExams.find(e => e.examID === exam.examID);
+
       setSelectedExam(exam);
-      setSeatingArrangement(seating);
+      setSeatingArrangement(selectedExamData?.examSeatings || []);
       setError(null);
     } catch (err) {
       setError('Failed to load seating arrangement');
@@ -71,63 +74,188 @@ function ExamSeatingArrangement() {
     });
   };
 
-  const renderClassroomLayout = () => {
-    if (!seatingArrangement) return null;
+  // Parse seat position from "R4C2" format
+  const parseSeatPosition = (seatNo) => {
+    const match = seatNo.match(/R(\d+)C(\d+)/);
+    if (match) {
+      return {
+        row: parseInt(match[1]),
+        col: parseInt(match[2])
+      };
+    }
+    return { row: 0, col: 0 };
+  };
 
-    const { rows, columns, studentSeat } = seatingArrangement;
-    const totalSeats = rows * columns;
-    const seats = [];
+  // Find current user's seat
+  const findUserSeat = () => {
+    if (!seatingArrangement || !user) return null;
+    return seatingArrangement.find(seat =>
+      seat.student && seat.student.regNo === user.id
+    );
+  };
+
+  const renderClassroomLayout = () => {
+    if (!seatingArrangement || seatingArrangement.length === 0) {
+      return (
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          color: '#6b7280'
+        }}>
+          <MapPin size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+          <h3 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 8px 0' }}>
+            No Seating Arrangement
+          </h3>
+          <p style={{ margin: '0' }}>
+            Seating arrangement has not been assigned for this exam yet.
+          </p>
+        </div>
+      );
+    }
+
+    // Calculate grid dimensions
+    const positions = seatingArrangement.map(seat => parseSeatPosition(seat.seatNo));
+    const maxRow = Math.max(...positions.map(p => p.row));
+    const maxCol = Math.max(...positions.map(p => p.col));
+
+    const userSeat = findUserSeat();
 
     // Create seat grid
-    for (let row = 1; row <= rows; row++) {
-      for (let col = 1; col <= columns; col++) {
-        const seatNumber = (row - 1) * columns + col;
-        const isStudentSeat = studentSeat && studentSeat.seatNumber === seatNumber;
-        
-        seats.push({
-          seatNumber,
+    const seatGrid = [];
+    for (let row = 1; row <= maxRow; row++) {
+      for (let col = 1; col <= maxCol; col++) {
+        const seatData = seatingArrangement.find(seat => {
+          const pos = parseSeatPosition(seat.seatNo);
+          return pos.row === row && pos.col === col;
+        });
+
+        const isUserSeat = userSeat && seatData && seatData.id === userSeat.id;
+
+        seatGrid.push({
           row,
           col,
-          isStudentSeat,
-          isOccupied: isStudentSeat
+          seatNo: seatData ? seatData.seatNo : `R${row}C${col}`,
+          student: seatData ? seatData.student : null,
+          isOccupied: !!seatData,
+          isUserSeat
         });
       }
     }
 
     return (
-      <div className="classroom-layout">
-        <div className="classroom-header">
-          <h3>Classroom Layout</h3>
-          <p>{rows} rows × {columns} columns ({totalSeats} total seats)</p>
+      <div style={{ padding: '24px' }}>
+        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            margin: '0 0 8px 0',
+            color: '#1f2937'
+          }}>
+            Classroom Seating Layout
+          </h3>
+          <p style={{ color: '#6b7280', margin: '0' }}>
+            {maxRow} rows × {maxCol} columns • {seatingArrangement.length} students assigned
+          </p>
         </div>
-        
-        <div className="classroom-grid" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
-          {seats.map((seat) => (
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${maxCol}, 1fr)`,
+          gap: '8px',
+          maxWidth: '800px',
+          margin: '0 auto 24px auto',
+          padding: '20px',
+          background: '#f8fafc',
+          borderRadius: '16px',
+          border: '2px solid #e2e8f0'
+        }}>
+          {seatGrid.map((seat) => (
             <div
-              key={seat.seatNumber}
-              className={`seat ${seat.isStudentSeat ? 'student-seat' : seat.isOccupied ? 'occupied' : 'empty'}`}
-              title={`Seat ${seat.seatNumber} (Row ${seat.row}, Column ${seat.col})`}
+              key={`${seat.row}-${seat.col}`}
+              style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: seat.isOccupied ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+                background: seat.isUserSeat ?
+                  'linear-gradient(135deg, #10b981 0%, #059669 100%)' :
+                  seat.isOccupied ?
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' :
+                    '#ffffff',
+                color: seat.isOccupied ? 'white' : '#9ca3af',
+                border: seat.isOccupied ? 'none' : '2px dashed #d1d5db',
+                boxShadow: seat.isOccupied ? '0 4px 12px rgba(0, 0, 0, 0.15)' : 'none'
+              }}
+              title={seat.isOccupied ?
+                `${seat.seatNo} - ${seat.student.name} (${seat.student.regNo})` :
+                `${seat.seatNo} - Empty`
+              }
+              onMouseEnter={(e) => {
+                if (seat.isOccupied && !seat.isUserSeat) {
+                  e.target.style.transform = 'scale(1.05)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (seat.isOccupied && !seat.isUserSeat) {
+                  e.target.style.transform = 'scale(1)';
+                }
+              }}
             >
-              <span className="seat-number">{seat.seatNumber}</span>
-              {seat.isStudentSeat && (
-                <div className="student-indicator">YOU</div>
+              <div style={{ fontSize: '10px', opacity: 0.8 }}>
+                {seat.seatNo}
+              </div>
+              {seat.isUserSeat && (
+                <div style={{ fontSize: '8px', fontWeight: '700' }}>
+                  YOU
+                </div>
+              )}
+              {seat.isOccupied && !seat.isUserSeat && (
+                <User size={12} />
               )}
             </div>
           ))}
         </div>
-        
-        <div className="seat-legend">
-          <div className="legend-item">
-            <div className="legend-color student-seat"></div>
-            <span>Your Seat</span>
+
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '24px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '20px',
+              height: '20px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              borderRadius: '4px'
+            }} />
+            <span style={{ fontSize: '14px', color: '#374151' }}>Your Seat</span>
           </div>
-          <div className="legend-item">
-            <div className="legend-color occupied"></div>
-            <span>Occupied</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '20px',
+              height: '20px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '4px'
+            }} />
+            <span style={{ fontSize: '14px', color: '#374151' }}>Occupied</span>
           </div>
-          <div className="legend-item">
-            <div className="legend-color empty"></div>
-            <span>Available</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '20px',
+              height: '20px',
+              background: '#ffffff',
+              border: '2px dashed #d1d5db',
+              borderRadius: '4px'
+            }} />
+            <span style={{ fontSize: '14px', color: '#374151' }}>Available</span>
           </div>
         </div>
       </div>
@@ -165,91 +293,225 @@ function ExamSeatingArrangement() {
     );
   }
 
-  if (selectedExam && seatingArrangement) {
+  if (selectedExam && seatingArrangement !== null) {
+    const userSeat = findUserSeat();
+
     return (
       <PageLayout>
-        <div className="app">
-          <div className="header">
-            <Button variant="ghost" className="back-button" onClick={handleBackToExams}>
-              <ArrowLeft size={20} />
-              Back to Exams
-            </Button>
-            <h1>Exam Seating Arrangement</h1>
-            <p className="class-details">
-              {selectedExam.name} • {selectedExam.subject}
-            </p>
+        <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+              <Button
+                onClick={handleBackToExams}
+                variant="outline"
+                style={{
+                  borderRadius: '50%',
+                  width: '48px',
+                  height: '48px',
+                  padding: '0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #667eea',
+                  color: '#667eea',
+                  background: 'white'
+                }}
+              >
+                <ArrowLeft size={20} />
+              </Button>
+              <div>
+                <h1 style={{
+                  fontSize: '2.5rem',
+                  fontWeight: '800',
+                  margin: '0 0 8px 0',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}>
+                  Exam Seating Arrangement
+                </h1>
+                <p style={{ color: '#6b7280', fontSize: '1.1rem', margin: '0' }}>
+                  {selectedExam.name} • {selectedExam.subject}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="exam-seating-content">
-            <div className="exam-info-section">
-              <Card className="exam-details-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar size={20} />
-                    Exam Details
+          {/* Exam Info Cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: userSeat ? 'repeat(auto-fit, minmax(300px, 1fr))' : '1fr',
+            gap: '24px',
+            marginBottom: '32px'
+          }}>
+            {/* Exam Details Card */}
+            <Card style={{ borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+              <CardHeader style={{
+                background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                borderBottom: '1px solid #e2e8f0',
+                borderRadius: '16px 16px 0 0'
+              }}>
+                <CardTitle style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  fontSize: '18px',
+                  fontWeight: '700'
+                }}>
+                  <BookOpen size={20} style={{ color: '#667eea' }} />
+                  Exam Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280', fontWeight: '500' }}>Exam Name:</span>
+                    <span style={{ fontWeight: '600', color: '#1f2937' }}>{selectedExam.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280', fontWeight: '500' }}>Subject:</span>
+                    <span style={{ fontWeight: '600', color: '#1f2937' }}>{selectedExam.subject}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280', fontWeight: '500' }}>Date:</span>
+                    <span style={{ fontWeight: '600', color: '#1f2937' }}>{formatDate(selectedExam.date)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280', fontWeight: '500' }}>Duration:</span>
+                    <span style={{ fontWeight: '600', color: '#1f2937' }}>{selectedExam.duration} minutes</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280', fontWeight: '500' }}>Class ID:</span>
+                    <span style={{ fontWeight: '600', color: '#1f2937' }}>{selectedExam.classId}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* User Seat Card */}
+            {userSeat && (
+              <Card style={{
+                borderRadius: '16px',
+                border: '2px solid #10b981',
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
+              }}>
+                <CardHeader style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  borderRadius: '14px 14px 0 0'
+                }}>
+                  <CardTitle style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    fontSize: '18px',
+                    fontWeight: '700'
+                  }}>
+                    <MapPin size={20} />
+                    Your Seat Assignment
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="exam-details-grid">
-                    <div className="detail-item">
-                      <span className="label">Exam Name:</span>
-                      <span className="value">{selectedExam.name}</span>
+                <CardContent style={{ padding: '24px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                      fontSize: '2rem',
+                      fontWeight: '800',
+                      color: '#10b981',
+                      marginBottom: '8px'
+                    }}>
+                      {userSeat.seatNo}
                     </div>
-                    <div className="detail-item">
-                      <span className="label">Subject:</span>
-                      <span className="value">{selectedExam.subject}</span>
+                    <div style={{
+                      fontSize: '14px',
+                      color: '#059669',
+                      fontWeight: '600'
+                    }}>
+                      {(() => {
+                        const pos = parseSeatPosition(userSeat.seatNo);
+                        return `Row ${pos.row}, Column ${pos.col}`;
+                      })()}
                     </div>
-                    <div className="detail-item">
-                      <span className="label">Date:</span>
-                      <span className="value">{formatDate(selectedExam.date)}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Time:</span>
-                      <span className="value">{formatTime(selectedExam.startTime)} - {formatTime(selectedExam.endTime)}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Duration:</span>
-                      <span className="value">{selectedExam.duration} minutes</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Classroom:</span>
-                      <span className="value">{selectedExam.classroom}</span>
-                    </div>
+                    <Badge style={{
+                      marginTop: '12px',
+                      background: '#10b981',
+                      color: 'white'
+                    }}>
+                      Confirmed
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
+            )}
 
-              {seatingArrangement.studentSeat && (
-                <Card className="student-seat-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin size={20} />
-                      Your Seat Assignment
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="seat-assignment">
-                      <div className="seat-info">
-                        <div className="seat-number-large">
-                          Seat {seatingArrangement.studentSeat.seatNumber}
-                        </div>
-                        <div className="seat-position">
-                          Row {seatingArrangement.studentSeat.row}, Column {seatingArrangement.studentSeat.column}
-                        </div>
-                      </div>
-                      <Badge variant="default" className="seat-status">
-                        Assigned
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            <div className="classroom-section">
-              {renderClassroomLayout()}
-            </div>
+            {/* No Seat Assigned Card */}
+            {!userSeat && (
+              <Card style={{
+                borderRadius: '16px',
+                border: '2px solid #f59e0b',
+                background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)'
+              }}>
+                <CardHeader style={{
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: 'white',
+                  borderRadius: '14px 14px 0 0'
+                }}>
+                  <CardTitle style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    fontSize: '18px',
+                    fontWeight: '700'
+                  }}>
+                    <MapPin size={20} />
+                    Seat Assignment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent style={{ padding: '24px', textAlign: 'center' }}>
+                  <div style={{ color: '#d97706', marginBottom: '8px' }}>
+                    <MapPin size={32} style={{ margin: '0 auto' }} />
+                  </div>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: '#92400e',
+                    marginBottom: '4px'
+                  }}>
+                    No Seat Assigned
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#a16207'
+                  }}>
+                    Please contact your instructor
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
+
+          {/* Classroom Layout */}
+          <Card style={{ borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <CardHeader style={{
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+              borderBottom: '1px solid #e2e8f0'
+            }}>
+              <CardTitle style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontSize: '18px',
+                fontWeight: '700'
+              }}>
+                <Users size={20} style={{ color: '#667eea' }} />
+                Classroom Layout
+              </CardTitle>
+            </CardHeader>
+            <CardContent style={{ padding: '0' }}>
+              {renderClassroomLayout()}
+            </CardContent>
+          </Card>
         </div>
       </PageLayout>
     );
@@ -257,64 +519,179 @@ function ExamSeatingArrangement() {
 
   return (
     <PageLayout>
-      <div className="app">
-        <div className="dashboard">
-          <div className="dashboard-header">
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
             <div>
-              <h1>Exam Seating Arrangement</h1>
-              <p className="dashboard-description">
-                View your seat assignment for upcoming exams
+              <h1 style={{
+                fontSize: '2.5rem',
+                fontWeight: '800',
+                margin: '0 0 8px 0',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                Exam Seating Arrangements
+              </h1>
+              <p style={{ color: '#6b7280', fontSize: '1.1rem', margin: '0' }}>
+                View your seat assignments for upcoming exams
               </p>
             </div>
-            <div className="student-info">
-              <div className="student-details">
-                <span className="student-name">{user.name}</span>
-                <span className="student-id">ID: {user.regNumber}</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="exams-grid">
-            {exams.length === 0 ? (
-              <div className="no-exams">
-                <Calendar size={48} className="no-exams-icon" />
-                <h3>No Exams Available</h3>
-                <p>There are currently no exams with seating arrangements.</p>
-              </div>
-            ) : (
-              exams.map((exam) => (
-                <div
-                  key={exam.id}
-                  className="exam-card"
-                  onClick={() => handleExamSelect(exam)}
-                >
-                  <div className="exam-header">
-                    <Calendar size={32} className="exam-icon" />
-                    <h3>{exam.name}</h3>
+            {user && (
+              <Card style={{ padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    background: 'linear-gradient(135deg, #667eea15, #764ba215)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <User size={20} style={{ color: '#667eea' }} />
                   </div>
-                  <div className="exam-details">
-                    <p className="exam-subject">{exam.subject}</p>
-                    <p className="exam-date">
-                      <Calendar size={14} />
-                      {formatDate(exam.date)}
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: '600', margin: '0', color: '#1f2937' }}>
+                      {user.name}
                     </p>
-                    <p className="exam-time">
-                      <Clock size={14} />
-                      {formatTime(exam.startTime)} - {formatTime(exam.endTime)}
+                    <p style={{ fontSize: '12px', color: '#6b7280', margin: '0' }}>
+                      ID: {user.id}
                     </p>
-                    <p className="exam-classroom">
-                      <MapPin size={14} />
-                      {exam.classroom}
-                    </p>
-                    <Badge variant="outline" className="exam-type">
-                      {exam.type}
-                    </Badge>
                   </div>
                 </div>
-              ))
+              </Card>
             )}
           </div>
         </div>
+
+        {/* Exams Grid */}
+        {exams.length === 0 ? (
+          <Card style={{
+            padding: '4rem',
+            textAlign: 'center',
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0'
+          }}>
+            <Calendar size={64} style={{
+              margin: '0 auto 24px',
+              color: '#9ca3af'
+            }} />
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              margin: '0 0 12px 0',
+              color: '#374151'
+            }}>
+              No Exams Available
+            </h3>
+            <p style={{
+              color: '#6b7280',
+              margin: '0',
+              fontSize: '16px'
+            }}>
+              There are currently no exams with seating arrangements available.
+            </p>
+          </Card>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+            gap: '24px'
+          }}>
+            {exams.map((exam) => (
+              <Card
+                key={exam.id}
+                style={{
+                  borderRadius: '16px',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  overflow: 'hidden'
+                }}
+                onClick={() => handleExamSelect(exam)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.borderColor = '#667eea';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                }}
+              >
+                <CardHeader style={{
+                  background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                  borderBottom: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      background: 'linear-gradient(135deg, #667eea15, #764ba215)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <BookOpen size={24} style={{ color: '#667eea' }} />
+                    </div>
+                    <div>
+                      <CardTitle style={{
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        margin: '0 0 4px 0'
+                      }}>
+                        {exam.name}
+                      </CardTitle>
+                      <p style={{
+                        color: '#6b7280',
+                        fontSize: '14px',
+                        margin: '0'
+                      }}>
+                        {exam.subject}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent style={{ padding: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={16} style={{ color: '#667eea' }} />
+                      <span style={{ fontSize: '14px', color: '#374151' }}>
+                        {formatDate(exam.date)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={16} style={{ color: '#667eea' }} />
+                      <span style={{ fontSize: '14px', color: '#374151' }}>
+                        {exam.duration} minutes
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MapPin size={16} style={{ color: '#667eea' }} />
+                      <span style={{ fontSize: '14px', color: '#374151' }}>
+                        Class {exam.classId}
+                      </span>
+                    </div>
+                    <Badge style={{
+                      alignSelf: 'flex-start',
+                      marginTop: '8px',
+                      background: exam.status === 'upcoming' ? '#10b981' : '#6b7280',
+                      color: 'white'
+                    }}>
+                      {exam.status === 'upcoming' ? 'Upcoming' : 'Completed'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </PageLayout>
   );
