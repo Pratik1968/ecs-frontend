@@ -809,7 +809,7 @@ function AdminExamSeating() {
                             width: '100%',
                             padding: '16px 20px',
                             border: `2px solid ${!newSeatNumber ? '#e5e7eb' :
-                                newSeatNumber.match(/^R\d+C\d+$/) ? '#10b981' : '#ef4444'
+                              newSeatNumber.match(/^R\d+C\d+$/) ? '#10b981' : '#ef4444'
                               }`,
                             borderRadius: '12px',
                             fontSize: '15px',

@@ -236,10 +236,22 @@ export const getAttendanceByDate = async (date, classId) => {
 /**
  * Get attendance statistics for a class
  * @param {string} classId - The class ID
+ * @param {string} startDate - Start date (optional)
+ * @param {string} endDate - End date (optional)
  * @returns {Promise<Object>} Attendance statistics
  */
-export const getAttendanceStats = async (classId) => {
-  const stats = await apiCall(`/attendance/stats/${classId}`);
+export const getAttendanceStats = async (classId, startDate = null, endDate = null) => {
+  let url = `/attendance/stats/${classId}`;
+  const params = new URLSearchParams();
+  
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+  
+  const stats = await apiCall(url);
   return {
     totalStudents: stats.totalStudents,
     presentStudents: stats.presentStudents,
@@ -250,6 +262,121 @@ export const getAttendanceStats = async (classId) => {
 };
 
 /**
+ * Get all class days for a specific class (days when any student marked attendance)
+ * @param {string} classId - The class ID
+ * @returns {Promise<Array>} Array of dates when classes happened
+ */
+export const getClassDays = async (classId) => {
+  try {
+    // Get all students in the class
+    const students = await getStudentsByClass(classId);
+    const classDaysSet = new Set();
+    
+    // Get attendance history for all students and collect unique dates
+    for (const student of students) {
+      try {
+        const attendanceHistory = await getStudentAttendanceHistory(student.regNo);
+        if (attendanceHistory && attendanceHistory.length > 0) {
+          // Filter for this class and collect unique dates
+          const classAttendance = attendanceHistory.filter(record => 
+            record.classID === classId && record.date
+          );
+          
+          classAttendance.forEach(record => {
+            classDaysSet.add(record.date);
+          });
+        }
+      } catch (error) {
+        console.log(`Error getting attendance for student ${student.regNo}:`, error);
+      }
+    }
+    
+    return Array.from(classDaysSet).sort();
+  } catch (error) {
+    console.error('Error getting class days:', error);
+    return [];
+  }
+};
+
+/**
+ * Calculate individual student attendance rates based on class days
+ * @param {Array} students - Array of student objects
+ * @param {string} classId - The class ID
+ * @returns {Promise<Array>} Students with attendance rates
+ */
+export const getStudentsWithAttendanceRates = async (students, classId) => {
+  try {
+    // Get all class days for this class
+    const classDays = await getClassDays(classId);
+    console.log(`Class days for ${classId}:`, classDays);
+    
+    if (classDays.length === 0) {
+      console.log(`No class days found for ${classId}`);
+      return students.map(student => ({ ...student, attendanceRate: 0 }));
+    }
+    
+    const studentsWithAttendance = await Promise.all(
+      students.map(async (student) => {
+        try {
+          const attendanceHistory = await getStudentAttendanceHistory(student.regNo);
+          console.log(`Attendance history for ${student.regNo}:`, attendanceHistory);
+          
+          // Create a set of dates when this student was present (handle duplicates)
+          const presentDates = new Set();
+          if (attendanceHistory && attendanceHistory.length > 0) {
+            // Filter for this class and group by date to handle duplicates
+            const classAttendance = attendanceHistory.filter(record => 
+              record.classID === classId && record.date
+            );
+            
+            // Group by date and check if student was present on each date
+            const attendanceByDate = {};
+            classAttendance.forEach(record => {
+              if (!attendanceByDate[record.date]) {
+                attendanceByDate[record.date] = [];
+              }
+              attendanceByDate[record.date].push(record);
+            });
+            
+            // For each date, if any record has arrival_time, student was present
+            Object.keys(attendanceByDate).forEach(date => {
+              const dayRecords = attendanceByDate[date];
+              const wasPresent = dayRecords.some(record => record.arrival_time);
+              if (wasPresent) {
+                presentDates.add(date);
+              }
+            });
+          }
+          
+          // Calculate attendance rate based on class days
+          const totalClassDays = classDays.length;
+          const presentDays = classDays.filter(date => presentDates.has(date)).length;
+          const attendanceRate = totalClassDays > 0 ? Math.round((presentDays / totalClassDays) * 100) : 0;
+          
+          console.log(`Student ${student.regNo}: Present ${presentDays}/${totalClassDays} class days = ${attendanceRate}%`);
+          
+          return {
+            ...student,
+            attendanceRate
+          };
+        } catch (error) {
+          console.error(`Error calculating attendance for student ${student.regNo}:`, error);
+          return {
+            ...student,
+            attendanceRate: 0
+          };
+        }
+      })
+    );
+    
+    return studentsWithAttendance;
+  } catch (error) {
+    console.error('Error calculating students with attendance rates:', error);
+    return students.map(student => ({ ...student, attendanceRate: 0 }));
+  }
+};
+
+/**
  * Get complete class information including students and attendance data
  * @param {string} classId - The class ID
  * @returns {Promise<Object>} Complete class object with students and attendance
@@ -257,11 +384,14 @@ export const getAttendanceStats = async (classId) => {
 export const getClassDetails = async (classId) => {
   try {
     // Get students and attendance data for this class
-    const [students, attendanceStats, todayAttendance] = await Promise.all([
+    const [rawStudents, attendanceStats, todayAttendance] = await Promise.all([
       getStudentsByClass(classId),
       getAttendanceStats(classId),
       getTodayAttendance(classId)
     ]);
+
+    // Calculate individual attendance rates for each student based on class days
+    const students = await getStudentsWithAttendanceRates(rawStudents, classId);
 
     return {
       id: classId,
@@ -648,6 +778,8 @@ export default {
   scanBarcodeForAttendance,
   getAttendanceByDate,
   getAttendanceStats,
+  getClassDays,
+  getStudentsWithAttendanceRates,
   getClassDetails,
   getExams,
   getExamById,

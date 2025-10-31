@@ -21,67 +21,18 @@ import DebugNavigation from '@/components/DebugNavigation';
 import ApiTestPanel from '@/components/ApiTestPanel';
 import StudentManagement from '@/components/StudentManagement';
 
-// Mock attendance records (keeping this for now as requested)
-const mockAttendanceRecords = {
-  'CS101': {
-    '2024-01-26': [
-      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:11' },
-      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:14' },
-      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'present', entryTime: '09:16' },
-      { name: 'Emma Davis', regNumber: '2024CS004', status: 'absent', entryTime: '-' },
-      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:09' }
-    ],
-    '2024-01-25': [
-      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:05' },
-      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:12' },
-      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'absent', entryTime: '-' },
-      { name: 'Emma Davis', regNumber: '2024CS004', status: 'present', entryTime: '09:08' },
-      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:15' }
-    ]
-  },
-  'MA102': {
-    '2024-01-26': [
-      { name: 'Sarah Wilson', regNumber: '2024MA001', status: 'present', entryTime: '10:05' },
-      { name: 'David Lee', regNumber: '2024MA002', status: 'present', entryTime: '10:12' },
-      { name: 'Lisa Chen', regNumber: '2024MA003', status: 'present', entryTime: '10:08' }
-    ]
-  },
-  'PH201': {
-    '2024-01-26': [
-      { name: 'Tom Anderson', regNumber: '2024PH001', status: 'present', entryTime: '14:05' },
-      { name: 'Rachel Green', regNumber: '2024PH002', status: 'absent', entryTime: '-' },
-      { name: 'Chris Martin', regNumber: '2024PH003', status: 'present', entryTime: '14:12' }
-    ]
-  },
-  'CH202': {
-    '2024-01-26': [
-      { name: 'Alex Turner', regNumber: '2024CH001', status: 'present', entryTime: '15:05' },
-      { name: 'Sophie White', regNumber: '2024CH002', status: 'present', entryTime: '15:08' },
-      { name: 'James Black', regNumber: '2024CH003', status: 'present', entryTime: '15:12' }
-    ]
-  },
-  'EN301': {
-    '2024-01-26': [
-      { name: 'Grace Kelly', regNumber: '2024EN001', status: 'present', entryTime: '11:05' },
-      { name: 'Henry Ford', regNumber: '2024EN002', status: 'absent', entryTime: '-' },
-      { name: 'Ivy Johnson', regNumber: '2024EN003', status: 'present', entryTime: '11:12' }
-    ]
-  },
-  'HI302': {
-    '2024-01-26': [
-      { name: 'Kate Winslet', regNumber: '2024HI001', status: 'present', entryTime: '13:05' },
-      { name: 'Leo DiCaprio', regNumber: '2024HI002', status: 'present', entryTime: '13:08' },
-      { name: 'Meryl Streep', regNumber: '2024HI003', status: 'present', entryTime: '13:12' }
-    ]
-  }
-};
+// Import attendance API functions
+import { getAttendanceByDate, getClassDays } from '@/services/api';
 
 // Admin Dashboard Component
 function AdminDashboard({ navigateWithParams }) {
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [activeTab, setActiveTab] = useState('class-info');
-  const [selectedDate, setSelectedDate] = useState('2024-01-26');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -108,11 +59,88 @@ function AdminDashboard({ navigateWithParams }) {
     try {
       setLoading(true);
       const classDetails = await getClassDetails(classroom.id);
-      // Add attendance records to the class details
+      
+      console.log(`Loading attendance for class ${classroom.id}`);
+      
+      // Get all class days (days when any student marked attendance)
+      const classDays = await getClassDays(classroom.id);
+      console.log(`Class days for ${classroom.id}:`, classDays);
+      
+      // Load attendance records for each class day
+      const attendanceRecords = {};
+      
+      for (const classDay of classDays) {
+        try {
+          const dayAttendance = await getAttendanceByDate(classDay, classroom.id);
+          console.log(`Attendance for ${classDay}:`, dayAttendance);
+          
+          if (dayAttendance && dayAttendance.length > 0) {
+            // Get all students in the class to show who was absent
+            const allStudents = classDetails.students || [];
+            
+            // Create a map of regNo to student name for quick lookup
+            const studentNameMap = {};
+            allStudents.forEach(student => {
+              studentNameMap[student.regNo] = student.name;
+            });
+            
+            // Remove duplicates - keep only the first attendance record per student per day
+            const uniqueAttendance = {};
+            dayAttendance.forEach(record => {
+              const regNo = record.regNo || record.regNumber;
+              if (!uniqueAttendance[regNo]) {
+                uniqueAttendance[regNo] = record;
+              }
+            });
+            
+            const presentStudents = new Set(Object.keys(uniqueAttendance));
+            
+            // Create attendance records for all students
+            const dayRecords = [];
+            
+            // Add present students (using unique attendance records)
+            Object.values(uniqueAttendance).forEach(record => {
+              const regNo = record.regNo || record.regNumber;
+              dayRecords.push({
+                name: studentNameMap[regNo] || record.studentName || record.name || 'Unknown Student',
+                regNumber: regNo,
+                status: 'present',
+                entryTime: record.arrival_time ? 
+                  new Date(record.arrival_time).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  }) : '-'
+              });
+            });
+            
+            // Add absent students (students in class but not in attendance records)
+            allStudents.forEach(student => {
+              if (!presentStudents.has(student.regNo)) {
+                dayRecords.push({
+                  name: student.name,
+                  regNumber: student.regNo,
+                  status: 'absent',
+                  entryTime: '-'
+                });
+              }
+            });
+            
+            attendanceRecords[classDay] = dayRecords;
+          }
+        } catch (attendanceError) {
+          console.log(`No attendance data for ${classDay}:`, attendanceError);
+        }
+      }
+      
+      console.log('Final attendance records:', attendanceRecords);
+      
       const classroomWithAttendance = {
         ...classDetails,
-        attendanceRecords: mockAttendanceRecords[classroom.id] || {}
+        attendanceRecords,
+        classDays // Add class days for reference
       };
+      
       setSelectedClassroom(classroomWithAttendance);
       setActiveTab('class-info');
       setError(null);
@@ -146,6 +174,10 @@ function AdminDashboard({ navigateWithParams }) {
   };
 
   const getAvailableDates = (classroom) => {
+    // Use class days if available, otherwise fall back to attendance records
+    if (classroom.classDays && classroom.classDays.length > 0) {
+      return classroom.classDays.sort().reverse();
+    }
     return Object.keys(classroom.attendanceRecords).sort().reverse();
   };
 
@@ -193,7 +225,12 @@ function AdminDashboard({ navigateWithParams }) {
     return (
       <PageLayout>
         <div className="header">
-          <Button variant="ghost" className="back-button" onClick={handleBackToClassrooms}>
+          <Button 
+            variant="ghost" 
+            className="back-button" 
+            onClick={handleBackToClassrooms}
+            style={{ color: 'white' }}
+          >
             <ArrowLeft size={20} />
             Back to Classrooms
           </Button>
@@ -211,8 +248,8 @@ function AdminDashboard({ navigateWithParams }) {
               <TabsTrigger className="nav-tab" value="attendance-info">Attendance Info</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="class-info">
-              <div className="content">
+            <TabsContent value="class-info" style={{ minHeight: '500px' }}>
+              <div className="content" style={{ minHeight: '450px' }}>
                 <div className="class-info">
                   <div className="info-grid">
                     <Card className="basic-details">
@@ -261,8 +298,8 @@ function AdminDashboard({ navigateWithParams }) {
               </div>
             </TabsContent>
 
-            <TabsContent value="students">
-              <div className="content">
+            <TabsContent value="students" style={{ minHeight: '500px' }}>
+              <div className="content" style={{ minHeight: '450px' }}>
                 <div className="student-list">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0' }}>
@@ -331,8 +368,8 @@ function AdminDashboard({ navigateWithParams }) {
               </div>
             </TabsContent>
 
-            <TabsContent value="faculty">
-              <div className="content">
+            <TabsContent value="faculty" style={{ minHeight: '500px' }}>
+              <div className="content" style={{ minHeight: '450px' }}>
                 <div className="faculty-info">
                   <h3><GraduationCap size={20} /> Faculty Information</h3>
                   <div className="faculty-details">
@@ -357,8 +394,8 @@ function AdminDashboard({ navigateWithParams }) {
               </div>
             </TabsContent>
 
-            <TabsContent value="attendance-info">
-              <div className="content">
+            <TabsContent value="attendance-info" style={{ minHeight: '500px' }}>
+              <div className="content" style={{ minHeight: '450px' }}>
                 <div className="attendance-info">
                   <h3><Clock size={20} /> Attendance Information</h3>
                   <p className="attendance-description">View attendance records for specific class dates</p>
@@ -391,9 +428,17 @@ function AdminDashboard({ navigateWithParams }) {
                     </Popover>
                     <Button 
                       className="latest-class-btn"
-                      onClick={() => setSelectedDate(availableDates[0])}
+                      onClick={() => {
+                        if (availableDates.length > 0) {
+                          setSelectedDate(availableDates[0]);
+                        } else {
+                          // If no attendance data, set to today's date
+                          const today = new Date();
+                          setSelectedDate(today.toISOString().split('T')[0]);
+                        }
+                      }}
                     >
-                      Latest Class
+                      Latest Class ({availableDates.length > 0 ? availableDates.length : 0} days available)
                     </Button>
                   </div>
 
@@ -554,12 +599,12 @@ function AppWithAuth() {
 
 // Wrapper component to provide debug navigation at all times
 function AppWithDebug() {
-  const { isAuthenticated, userType, isLoading, switchUserType, logout, login } = useAuth();
+  const { isAuthenticated, userType, isLoading, switchUserType, logout, login, selectStudent, selectedStudent } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [pageParams, setPageParams] = useState({});
 
-  const handlePageNavigation = (pageId, requiredUserType) => {
-    console.log('Debug Navigation:', { pageId, requiredUserType, isAuthenticated, userType });
+  const handlePageNavigation = async (pageId, requiredUserType, selectedStudentId = null) => {
+    console.log('Debug Navigation:', { pageId, requiredUserType, selectedStudentId, isAuthenticated, userType });
     
     if (requiredUserType === 'none') {
       // For login page, trigger logout
@@ -570,18 +615,63 @@ function AppWithDebug() {
       }
     }
     
+    // Handle student mode authentication only when navigating to student pages
+    if (requiredUserType === 'student') {
+      if (!selectedStudentId) {
+        console.log('No student selected for student mode');
+        alert('Please select a student first to access student pages');
+        return;
+      }
+
+      // Only authenticate when actually navigating to a student page
+      try {
+        const { getAllStudents } = await import('@/services/api');
+        const studentsData = await getAllStudents();
+        const selectedStudentData = studentsData.find(s => s.regNo === selectedStudentId);
+        
+        if (selectedStudentData) {
+          console.log('Authenticating as student:', selectedStudentData);
+          
+          // Create and authenticate the student user
+          const studentUser = {
+            id: selectedStudentData.regNo,
+            name: selectedStudentData.name,
+            email: `${selectedStudentData.regNo.toLowerCase()}@student.edu`,
+            regNumber: selectedStudentData.regNo,
+            classID: selectedStudentData.classID,
+            barcode: selectedStudentData.barcode,
+            attendanceRate: selectedStudentData.attendanceRate
+          };
+          
+          // Switch to student mode and authenticate
+          switchUserType('student');
+          selectStudent(selectedStudentData);
+          login(studentUser, 'student');
+        } else {
+          console.error('Student not found:', selectedStudentId);
+          alert('Selected student not found. Please select a different student.');
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading student data:', error);
+        alert('Error loading student data. Please try again.');
+        return;
+      }
+    }
+    
     // If not authenticated and trying to access admin/student pages, auto-authenticate
     if (!isAuthenticated && (requiredUserType === 'admin' || requiredUserType === 'student')) {
       console.log('Auto-authenticating as:', requiredUserType);
-      // Auto-authenticate for debugging purposes
-      const mockUser = {
-        id: requiredUserType === 'admin' ? 'admin001' : 'student001',
-        name: requiredUserType === 'admin' ? 'Debug Admin' : 'Debug Student',
-        email: requiredUserType === 'admin' ? 'admin@debug.com' : 'student@debug.com'
-      };
       
-      // Use the login function from auth context
-      login(mockUser, requiredUserType);
+      if (requiredUserType === 'admin') {
+        const mockUser = {
+          id: 'admin001',
+          name: 'Debug Admin',
+          email: 'admin@debug.com'
+        };
+        login(mockUser, requiredUserType);
+      }
+      // Student authentication is handled above in the student selection section
     }
     
     // Switch user type if needed (for already authenticated users)

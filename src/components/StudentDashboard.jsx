@@ -9,60 +9,7 @@ import PageLayout from '@/components/layout/PageLayout';
 import { getClasses, getClassDetails, getStudentAttendanceHistory } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Mock attendance records for student view
-const mockAttendanceRecords = {
-  'CS101': {
-    '2024-01-26': [
-      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:11' },
-      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:14' },
-      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'present', entryTime: '09:16' },
-      { name: 'Emma Davis', regNumber: '2024CS004', status: 'absent', entryTime: '-' },
-      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:09' }
-    ],
-    '2024-01-25': [
-      { name: 'John Smith', regNumber: '2024CS001', status: 'present', entryTime: '09:05' },
-      { name: 'Alice Johnson', regNumber: '2024CS002', status: 'present', entryTime: '09:12' },
-      { name: 'Bob Wilson', regNumber: '2024CS003', status: 'absent', entryTime: '-' },
-      { name: 'Emma Davis', regNumber: '2024CS004', status: 'present', entryTime: '09:08' },
-      { name: 'Michael Brown', regNumber: '2024CS005', status: 'present', entryTime: '09:15' }
-    ]
-  },
-  'MA102': {
-    '2024-01-26': [
-      { name: 'Sarah Wilson', regNumber: '2024MA001', status: 'present', entryTime: '10:05' },
-      { name: 'David Lee', regNumber: '2024MA002', status: 'present', entryTime: '10:12' },
-      { name: 'Lisa Chen', regNumber: '2024MA003', status: 'present', entryTime: '10:08' }
-    ]
-  },
-  'PH201': {
-    '2024-01-26': [
-      { name: 'Tom Anderson', regNumber: '2024PH001', status: 'present', entryTime: '14:05' },
-      { name: 'Rachel Green', regNumber: '2024PH002', status: 'absent', entryTime: '-' },
-      { name: 'Chris Martin', regNumber: '2024PH003', status: 'present', entryTime: '14:12' }
-    ]
-  },
-  'CH202': {
-    '2024-01-26': [
-      { name: 'Alex Turner', regNumber: '2024CH001', status: 'present', entryTime: '15:05' },
-      { name: 'Sophie White', regNumber: '2024CH002', status: 'present', entryTime: '15:08' },
-      { name: 'James Black', regNumber: '2024CH003', status: 'present', entryTime: '15:12' }
-    ]
-  },
-  'EN301': {
-    '2024-01-26': [
-      { name: 'Grace Kelly', regNumber: '2024EN001', status: 'present', entryTime: '11:05' },
-      { name: 'Henry Ford', regNumber: '2024EN002', status: 'absent', entryTime: '-' },
-      { name: 'Ivy Johnson', regNumber: '2024EN003', status: 'present', entryTime: '11:12' }
-    ]
-  },
-  'HI302': {
-    '2024-01-26': [
-      { name: 'Kate Winslet', regNumber: '2024HI001', status: 'present', entryTime: '13:05' },
-      { name: 'Leo DiCaprio', regNumber: '2024HI002', status: 'present', entryTime: '13:08' },
-      { name: 'Meryl Streep', regNumber: '2024HI003', status: 'present', entryTime: '13:12' }
-    ]
-  }
-};
+import { getAttendanceByDate, getClassDays } from '@/services/api';
 
 function StudentDashboard() {
   const { user } = useAuth();
@@ -71,6 +18,7 @@ function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('class-info');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [attendanceRates, setAttendanceRates] = useState({});
 
   // Load classrooms on component mount
   useEffect(() => {
@@ -81,6 +29,8 @@ function StudentDashboard() {
         
         // Load details for each class to check if student is enrolled
         const studentClassrooms = [];
+        const rates = {};
+        
         for (const classroom of classesData) {
           try {
             const classDetails = await getClassDetails(classroom.id);
@@ -90,6 +40,9 @@ function StudentDashboard() {
             );
             if (isEnrolled) {
               studentClassrooms.push(classroom);
+              // Calculate attendance rate for this classroom
+              const rate = await getStudentAttendanceForClass(classroom.id);
+              rates[classroom.id] = rate;
             }
           } catch (err) {
             console.error(`Error loading details for class ${classroom.id}:`, err);
@@ -97,6 +50,7 @@ function StudentDashboard() {
         }
         
         setClassrooms(studentClassrooms);
+        setAttendanceRates(rates);
         setError(null);
       } catch (err) {
         setError('Failed to load classrooms');
@@ -107,17 +61,68 @@ function StudentDashboard() {
     };
 
     loadClassrooms();
-  }, []);
+  }, [user.regNumber]);
 
   const handleClassroomClick = async (classroom) => {
     try {
       setLoading(true);
       const classDetails = await getClassDetails(classroom.id);
-      // Add attendance records to the class details
+      
+      // Get all class days (days when any student marked attendance)
+      const classDays = await getClassDays(classroom.id);
+      
+      // Load attendance records for each class day
+      const attendanceRecords = {};
+      
+      for (const classDay of classDays) {
+        try {
+          const dayAttendance = await getAttendanceByDate(classDay, classroom.id);
+          
+          if (dayAttendance && dayAttendance.length > 0) {
+            // Get all students in the class for name lookup
+            const allStudents = classDetails.students || [];
+            
+            // Create a map of regNo to student name for quick lookup
+            const studentNameMap = {};
+            allStudents.forEach(student => {
+              studentNameMap[student.regNo] = student.name;
+            });
+            
+            // Remove duplicates - keep only the first attendance record per student per day
+            const uniqueAttendance = {};
+            dayAttendance.forEach(record => {
+              const regNo = record.regNo || record.regNumber;
+              if (!uniqueAttendance[regNo]) {
+                uniqueAttendance[regNo] = record;
+              }
+            });
+            
+            attendanceRecords[classDay] = Object.values(uniqueAttendance).map(record => {
+              const regNo = record.regNo || record.regNumber;
+              return {
+                name: studentNameMap[regNo] || record.studentName || record.name || 'Unknown Student',
+                regNumber: regNo,
+                status: record.arrival_time ? 'present' : 'absent',
+                entryTime: record.arrival_time ? 
+                  new Date(record.arrival_time).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  }) : '-'
+              };
+            });
+          }
+        } catch (attendanceError) {
+          console.log(`No attendance data for ${classDay}:`, attendanceError);
+        }
+      }
+      
       const classroomWithAttendance = {
         ...classDetails,
-        attendanceRecords: mockAttendanceRecords[classroom.id] || {}
+        attendanceRecords,
+        classDays
       };
+      
       setSelectedClassroom(classroomWithAttendance);
       setActiveTab('class-info');
       setError(null);
@@ -150,22 +155,40 @@ function StudentDashboard() {
     });
   };
 
-  // Calculate student's attendance for a specific classroom
-  const getStudentAttendanceForClass = (classroomId) => {
-    const attendanceRecords = mockAttendanceRecords[classroomId] || {};
-    const dates = Object.keys(attendanceRecords);
-    let presentCount = 0;
-    let totalClasses = dates.length;
-
-    dates.forEach(date => {
-      const dayRecords = attendanceRecords[date];
-      const studentRecord = dayRecords.find(record => record.regNumber === user.regNumber);
-      if (studentRecord && studentRecord.status === 'present') {
-        presentCount++;
+  // Calculate student's attendance for a specific classroom using class days logic
+  const getStudentAttendanceForClass = async (classroomId) => {
+    try {
+      // Get all class days for this class
+      const classDays = await getClassDays(classroomId);
+      
+      if (classDays.length === 0) {
+        return 0;
       }
-    });
-
-    return totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
+      
+      // Get student's attendance history
+      const attendanceHistory = await getStudentAttendanceHistory(user.regNumber);
+      
+      if (!attendanceHistory || attendanceHistory.length === 0) {
+        return 0; // Student has no attendance records, so 0%
+      }
+      
+      // Create a set of dates when this student was present
+      const presentDates = new Set();
+      attendanceHistory.forEach(record => {
+        if (record.arrival_time && record.classID === classroomId) {
+          presentDates.add(record.date);
+        }
+      });
+      
+      // Calculate attendance rate based on class days
+      const totalClassDays = classDays.length;
+      const presentDays = classDays.filter(date => presentDates.has(date)).length;
+      
+      return totalClassDays > 0 ? Math.round((presentDays / totalClassDays) * 100) : 0;
+    } catch (error) {
+      console.error('Error calculating attendance:', error);
+      return 0;
+    }
   };
 
   // Get student's attendance records for a classroom
@@ -218,12 +241,17 @@ function StudentDashboard() {
 
   if (selectedClassroom) {
     const studentAttendanceRecords = getStudentAttendanceRecords(selectedClassroom.id);
-    const studentAttendanceRate = getStudentAttendanceForClass(selectedClassroom.id);
+    const studentAttendanceRate = attendanceRates[selectedClassroom.id] || 0;
 
     return (
       <PageLayout>
         <div className="header">
-          <Button variant="ghost" className="back-button" onClick={handleBackToClassrooms}>
+          <Button 
+            variant="ghost" 
+            className="back-button" 
+            onClick={handleBackToClassrooms}
+            style={{ color: 'white' }}
+          >
             <ArrowLeft size={20} />
             Back to Classrooms
           </Button>
@@ -240,8 +268,8 @@ function StudentDashboard() {
                 <TabsTrigger className="nav-tab" value="attendance-info">My Attendance</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="class-info">
-                <div className="content">
+              <TabsContent value="class-info" style={{ minHeight: '500px' }}>
+                <div className="content" style={{ minHeight: '450px' }}>
                   <div className="class-info">
                     <div className="info-grid">
                       <Card className="basic-details">
@@ -290,8 +318,8 @@ function StudentDashboard() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="faculty">
-                <div className="content">
+              <TabsContent value="faculty" style={{ minHeight: '500px' }}>
+                <div className="content" style={{ minHeight: '450px' }}>
                   <div className="faculty-info">
                     <h3><GraduationCap size={20} /> Faculty Information</h3>
                     <div className="faculty-details">
@@ -316,8 +344,8 @@ function StudentDashboard() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="attendance-info">
-                <div className="content">
+              <TabsContent value="attendance-info" style={{ minHeight: '500px' }}>
+                <div className="content" style={{ minHeight: '450px' }}>
                   <div className="attendance-info">
                     <h3><Clock size={20} /> My Attendance History</h3>
                     <p className="attendance-description">View your attendance records for this class</p>
@@ -384,7 +412,7 @@ function StudentDashboard() {
           
           <div className="classrooms-grid">
             {classrooms.map((classroom) => {
-              const studentAttendanceRate = getStudentAttendanceForClass(classroom.id);
+              const studentAttendanceRate = attendanceRates[classroom.id] || 0;
               const studentAttendanceRecords = getStudentAttendanceRecords(classroom.id);
               const presentClasses = studentAttendanceRecords.filter(record => record.status === 'present').length;
               const totalClasses = studentAttendanceRecords.length;

@@ -1,11 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bug, X, Home, Calendar, Users, User, Settings, Zap, ChevronRight } from 'lucide-react';
+import { Bug, X, Home, Calendar, Users, User, Settings, Zap, ChevronRight, UserCheck } from 'lucide-react';
+import { getAllStudents } from '@/services/api';
 
 function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [allStudents, setAllStudents] = useState([]);
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+
+  // Load students when debug panel opens
+  const loadStudents = async () => {
+    if (allStudents.length > 0) return; // Already loaded
+
+    setStudentsLoading(true);
+    try {
+      console.log('Loading students from API...');
+      const studentsData = await getAllStudents();
+      console.log('Students loaded from API:', studentsData);
+      setAllStudents(studentsData);
+    } catch (error) {
+      console.error('Error loading students from API:', error);
+      // Fallback to mock data if API fails (for debugging purposes)
+      const fallbackStudents = [
+        { regNo: '2024CS001', name: 'John Smith', classID: 'CS101', barcode: 'CS001123456', attendanceRate: 90 },
+        { regNo: '2024CS002', name: 'Alice Johnson', classID: 'CS101', barcode: 'CS002123456', attendanceRate: 85.5 },
+        { regNo: '2024CS003', name: 'Bob Wilson', classID: 'CS101', barcode: 'CS003123456', attendanceRate: 78.3 },
+        { regNo: '2024MA001', name: 'Sarah Wilson', classID: 'MA102', barcode: 'MA001123456', attendanceRate: 95.2 },
+        { regNo: '2024MA002', name: 'David Lee', classID: 'MA102', barcode: 'MA002123456', attendanceRate: 89.1 },
+        { regNo: '2024PH001', name: 'Tom Anderson', classID: 'PH201', barcode: 'PH001123456', attendanceRate: 82.5 }
+      ];
+      console.log('Using fallback students for debugging:', fallbackStudents);
+      setAllStudents(fallbackStudents);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  // Restore selected student from localStorage on mount
+  useEffect(() => {
+    const savedSelectedStudent = localStorage.getItem('debugSelectedStudent');
+    if (savedSelectedStudent) {
+      setSelectedStudentId(savedSelectedStudent);
+    }
+  }, []);
 
   const allPages = [
     {
@@ -46,13 +86,31 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
   ];
 
   const handlePageNavigation = (pageId, requiredUserType) => {
-    // Handle page navigation
-    onPageChange(pageId, requiredUserType);
+    // For student pages, pass the selected student ID
+    const studentId = requiredUserType === 'student' ? selectedStudentId : null;
+    onPageChange(pageId, requiredUserType, studentId);
     setIsOpen(false);
   };
 
+  const handleStudentSelection = (studentRegNo) => {
+    console.log('Student selected for debugging:', studentRegNo);
+    setSelectedStudentId(studentRegNo);
+    // Persist selection
+    if (studentRegNo) {
+      localStorage.setItem('debugSelectedStudent', studentRegNo);
+    } else {
+      localStorage.removeItem('debugSelectedStudent');
+    }
+  };
+
   const toggleDebugPanel = () => {
-    setIsOpen(!isOpen);
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+
+    // Load students when panel opens
+    if (newIsOpen) {
+      loadStudents();
+    }
   };
 
   return (
@@ -95,7 +153,7 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
         >
           <Bug size={24} />
         </Button>
-        
+
         {/* Tooltip */}
         <div
           style={{
@@ -165,9 +223,9 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <CardTitle style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  <CardTitle style={{
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: '12px',
                     fontSize: '24px',
                     fontWeight: '700'
@@ -175,21 +233,21 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                     <Bug size={28} />
                     Debug Navigation
                   </CardTitle>
-                  <div style={{ 
+                  <div style={{
                     marginTop: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px'
                   }}>
-                    <Badge 
-                      style={{ 
+                    <Badge
+                      style={{
                         background: 'rgba(255, 255, 255, 0.2)',
                         color: 'white',
                         border: 'none'
                       }}
                     >
-                      {userType === 'none' ? 'Not Authenticated' : 
-                       userType === 'admin' ? 'Admin Mode' : 'Student Mode'}
+                      {userType === 'none' ? 'Not Authenticated' :
+                        userType === 'admin' ? 'Admin Mode' : 'Student Mode'}
                     </Badge>
                     <span style={{ fontSize: '14px', opacity: 0.9 }}>
                       Current: {currentPage === 'login' ? 'Login Page' : currentPage}
@@ -212,9 +270,9 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                   <X size={20} />
                 </Button>
               </div>
-              <p style={{ 
-                fontSize: '14px', 
-                opacity: 0.9, 
+              <p style={{
+                fontSize: '14px',
+                opacity: 0.9,
                 margin: '12px 0 0 0',
                 lineHeight: '1.5'
               }}>
@@ -225,15 +283,110 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
             {/* Content */}
             <CardContent style={{ padding: '0', maxHeight: 'calc(85vh - 140px)', overflow: 'auto' }}>
               <div style={{ padding: '24px' }}>
+                {/* Student Selector for Student Mode */}
+                <div style={{
+                  marginBottom: '32px',
+                  padding: '20px',
+                  background: 'linear-gradient(135deg, #10b98108, #05966908)',
+                  border: '2px solid #10b98120',
+                  borderRadius: '16px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '16px'
+                  }}>
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        background: '#10b98115',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#10b981'
+                      }}
+                    >
+                      <UserCheck size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        color: '#1f2937',
+                        margin: '0'
+                      }}>
+                        Select Student for Testing
+                      </h3>
+                      <p style={{
+                        fontSize: '13px',
+                        color: '#6b7280',
+                        margin: '2px 0 0 0'
+                      }}>
+                        Choose a student to simulate their experience in student pages
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+                    Debug: {studentsLoading ? 'Loading...' : `${allStudents.length} students loaded`}, userType: {userType}
+                  </div>
+                  <select
+                    value={selectedStudentId || ''}
+                    onChange={(e) => {
+                      console.log('Student selected:', e.target.value);
+                      handleStudentSelection(e.target.value);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #10b981',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      outline: 'none',
+                      background: 'white',
+                      cursor: 'pointer',
+                      color: '#1f2937',
+                      minHeight: '48px'
+                    }}
+                  >
+                    <option value="">
+                      {studentsLoading ? 'Loading students...' : `Select a student... (${allStudents.length} available)`}
+                    </option>
+                    {!studentsLoading && allStudents.map((student) => (
+                      <option key={student.regNo} value={student.regNo}>
+                        {student.name} ({student.regNo}) - {student.classID}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedStudentId && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '12px',
+                      background: '#10b98108',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      color: '#065f46'
+                    }}>
+                      ✓ Selected: {allStudents.find(s => s.regNo === selectedStudentId)?.name} -
+                      Student pages will show data for this student
+                    </div>
+                  )}
+                </div>
+
                 {allPages.map((category, categoryIndex) => (
-                  <div 
+                  <div
                     key={category.category}
-                    style={{ 
+                    style={{
                       marginBottom: categoryIndex === allPages.length - 1 ? '0' : '32px'
                     }}
                   >
                     {/* Category Header */}
-                    <div style={{ 
+                    <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
@@ -250,8 +403,8 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                         }}
                       />
                       <div>
-                        <h3 style={{ 
-                          fontSize: '18px', 
+                        <h3 style={{
+                          fontSize: '18px',
                           fontWeight: '700',
                           color: '#1f2937',
                           margin: '0'
@@ -269,32 +422,42 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                     </div>
 
                     {/* Pages Grid */}
-                    <div style={{ 
+                    <div style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                       gap: '12px'
                     }}>
                       {category.pages.map((page) => {
                         const Icon = page.icon;
-                        const isCurrentPage = (page.id === currentPage && page.userType === userType) || 
-                                              (page.id === 'login' && currentPage === 'login');
-                        
+                        const isCurrentPage = (page.id === currentPage && page.userType === userType) ||
+                          (page.id === 'login' && currentPage === 'login');
+                        const isStudentPageWithoutSelection = page.userType === 'student' && !selectedStudentId;
+
                         return (
                           <div
                             key={`${page.userType}-${page.id}`}
-                            onClick={() => handlePageNavigation(page.id, page.userType)}
+                            onClick={() => {
+                              if (isStudentPageWithoutSelection) {
+                                alert('Please select a student first to access student pages');
+                                return;
+                              }
+                              handlePageNavigation(page.id, page.userType);
+                            }}
                             style={{
                               padding: '16px',
                               borderRadius: '12px',
-                              border: isCurrentPage ? `2px solid ${category.color}` : '2px solid #e5e7eb',
-                              background: isCurrentPage ? `${category.color}08` : 'white',
-                              cursor: 'pointer',
+                              border: isCurrentPage ? `2px solid ${category.color}` :
+                                isStudentPageWithoutSelection ? '2px solid #fca5a5' : '2px solid #e5e7eb',
+                              background: isCurrentPage ? `${category.color}08` :
+                                isStudentPageWithoutSelection ? '#fef2f2' : 'white',
+                              cursor: isStudentPageWithoutSelection ? 'not-allowed' : 'pointer',
                               transition: 'all 0.2s ease',
                               position: 'relative',
-                              overflow: 'hidden'
+                              overflow: 'hidden',
+                              opacity: isStudentPageWithoutSelection ? 0.6 : 1
                             }}
                             onMouseEnter={(e) => {
-                              if (!isCurrentPage) {
+                              if (!isCurrentPage && !isStudentPageWithoutSelection) {
                                 e.target.style.borderColor = category.color;
                                 e.target.style.background = `${category.color}04`;
                                 e.target.style.transform = 'translateY(-2px)';
@@ -302,7 +465,7 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                               }
                             }}
                             onMouseLeave={(e) => {
-                              if (!isCurrentPage) {
+                              if (!isCurrentPage && !isStudentPageWithoutSelection) {
                                 e.target.style.borderColor = '#e5e7eb';
                                 e.target.style.background = 'white';
                                 e.target.style.transform = 'translateY(0)';
@@ -327,17 +490,17 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                               </div>
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <h4 style={{ 
-                                    fontSize: '16px', 
+                                  <h4 style={{
+                                    fontSize: '16px',
                                     fontWeight: '600',
-                                    color: '#1f2937',
+                                    color: isStudentPageWithoutSelection ? '#6b7280' : '#1f2937',
                                     margin: '0'
                                   }}>
                                     {page.label}
                                   </h4>
                                   {isCurrentPage && (
-                                    <Badge 
-                                      style={{ 
+                                    <Badge
+                                      style={{
                                         background: category.color,
                                         color: 'white',
                                         fontSize: '10px',
@@ -347,6 +510,18 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                                       ACTIVE
                                     </Badge>
                                   )}
+                                  {isStudentPageWithoutSelection && (
+                                    <Badge
+                                      style={{
+                                        background: '#fca5a5',
+                                        color: '#7f1d1d',
+                                        fontSize: '10px',
+                                        padding: '2px 8px'
+                                      }}
+                                    >
+                                      SELECT STUDENT
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p style={{
                                   fontSize: '13px',
@@ -354,15 +529,18 @@ function DebugNavigation({ currentPage, onPageChange, userType, onUserTypeChange
                                   margin: '4px 0 0 0',
                                   lineHeight: '1.4'
                                 }}>
-                                  {page.description}
+                                  {isStudentPageWithoutSelection
+                                    ? 'Select a student above to access this page'
+                                    : page.description
+                                  }
                                 </p>
                               </div>
-                              <ChevronRight 
-                                size={16} 
-                                style={{ 
+                              <ChevronRight
+                                size={16}
+                                style={{
                                   color: '#9ca3af',
                                   opacity: isCurrentPage ? 1 : 0.5
-                                }} 
+                                }}
                               />
                             </div>
                           </div>
