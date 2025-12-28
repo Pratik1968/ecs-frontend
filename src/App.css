@@ -1396,4 +1396,39 @@ Debug Navigation Styles */
 
 .debug-panel-card::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}/*
+ Tab content smooth transitions */
+.navigation [data-state="active"] {
+  transition: all 0.2s ease-in-out;
+}
+
+.content {
+  transition: opacity 0.15s ease-in-out;
+  opacity: 1;
+}
+
+/* Ensure consistent tab content height */
+[role="tabpanel"] {
+  transition: min-height 0.2s ease-in-out;
+}
+
+/* Smooth height transitions for tab content */
+.class-info,
+.student-list,
+.faculty-info,
+.attendance-info {
+  transition: all 0.15s ease-in-out;
+}
+
+/* Prevent layout shift during tab changes */
+.info-grid {
+  min-height: 200px;
+}
+
+.table-container {
+  min-height: 300px;
+}
+
+.faculty-details {
+  min-height: 200px;
 }

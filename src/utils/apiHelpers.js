@@ -133,11 +133,41 @@ export const calculateAttendanceStats = (attendanceRecords) => {
   };
 };
 
+/**
+ * Validate and format exam ID for API calls
+ * @param {string|number} examId - The exam ID to validate
+ * @returns {string} Validated numeric string
+ * @throws {Error} If exam ID is invalid
+ */
+export const validateExamId = (examId) => {
+  const numericExamId = String(examId).replace(/[^0-9]/g, '');
+  if (!numericExamId) {
+    throw new Error('Invalid exam ID: must be numeric');
+  }
+  return numericExamId;
+};
+
+/**
+ * Validate and format seat number for API calls
+ * @param {string|number} seatNo - The seat number to validate
+ * @returns {number} Validated seat number
+ * @throws {Error} If seat number is invalid
+ */
+export const validateSeatNumber = (seatNo) => {
+  const numericSeatNo = Number(seatNo);
+  if (isNaN(numericSeatNo) || numericSeatNo <= 0) {
+    throw new Error('Invalid seat number: must be a positive number');
+  }
+  return numericSeatNo;
+};
+
 export default {
   formatApiDate,
   formatApiTime,
   handleApiError,
   validateRequiredFields,
   transformAttendanceData,
-  calculateAttendanceStats
+  calculateAttendanceStats,
+  validateExamId,
+  validateSeatNumber
 };

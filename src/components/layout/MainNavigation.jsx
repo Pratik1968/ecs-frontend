@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Home, Calendar, LogOut, User, Shield } from 'lucide-react';
@@ -6,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 function MainNavigation({ currentPage, onPageChange, userType }) {
   const { user, logout } = useAuth();
-  
+
   const navigationItems = [
     {
       id: 'dashboard',
@@ -28,7 +27,7 @@ function MainNavigation({ currentPage, onPageChange, userType }) {
     }
   ];
 
-  const filteredItems = navigationItems.filter(item => 
+  const filteredItems = navigationItems.filter(item =>
     item.availableFor.includes(userType)
   );
 
@@ -62,17 +61,17 @@ function MainNavigation({ currentPage, onPageChange, userType }) {
             <Home size={20} style={{ color: 'white' }} />
           </div>
           <div>
-            <h1 style={{ 
-              color: 'white', 
-              fontSize: '20px', 
+            <h1 style={{
+              color: 'white',
+              fontSize: '20px',
               fontWeight: '700',
               margin: '0',
               lineHeight: '1'
             }}>
               ECS System
             </h1>
-            <p style={{ 
-              color: 'rgba(255, 255, 255, 0.8)', 
+            <p style={{
+              color: 'rgba(255, 255, 255, 0.8)',
               fontSize: '12px',
               margin: '2px 0 0 0'
             }}>
@@ -136,15 +135,15 @@ function MainNavigation({ currentPage, onPageChange, userType }) {
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            {userType === 'admin' ? 
+            {userType === 'admin' ?
               <Shield size={18} style={{ color: 'white' }} /> :
               <User size={18} style={{ color: 'white' }} />
             }
           </div>
           <div>
-            <p style={{ 
-              color: 'white', 
-              fontSize: '14px', 
+            <p style={{
+              color: 'white',
+              fontSize: '14px',
               fontWeight: '600',
               margin: '0',
               lineHeight: '1'
